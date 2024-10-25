@@ -650,7 +650,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         """测试断线确认偏移量"""
         self.update_settings()
         offset_x, offset_y = self_defined_args['断线确认偏移量']
-        if offset_x > 0 and offset_y > 0 and offset_x < 50 and offset_y < 50:
+        if offset_x >= 0 and offset_y >= 0 and offset_x < 50 and offset_y < 50:
             disconnect_confirm()
         else:
             manager.sMessageBox("偏移量必须大于0且小于50！", "error", 5000)
