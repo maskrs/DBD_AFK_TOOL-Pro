@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from ast import List
 import atexit
 import copy
 import ctypes
@@ -471,6 +472,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             self.le_dccheck_keywords: '断线检测识别关键字',
             self.le_discheck_binaryzation: '断线检测二值化阈值',
             self.le_dcwords: '断线确认关键字',
+            self.le_dcconfirm_offset: '断线确认偏移量',
             self.le_news: '新内容的识别范围',
             self.le_news_binaryzation: '新内容二值化阈值',
             self.le_new_keywords: '新内容识别关键字',
@@ -503,6 +505,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         self.pb_previous.clicked.connect(self.pb_prev_click)
         self.pb_save.clicked.connect(self.pb_save_click)
         self.pb_reset.clicked.connect(self.pb_reset_click)
+        self.pb_dcconfirm_offset_test.clicked.connect(self.pb_dcconfirm_offset_test_click)
 
     def load_settings(self):
         """初始化加载设置文件内容"""
@@ -551,6 +554,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             '断线检测识别关键字': (self.le_dccheck_keywords, 'setText'),
             '断线检测二值化阈值': (self.le_discheck_binaryzation, 'setText'),
             '断线确认关键字': (self.le_dcwords, 'setText'),
+            '断线确认偏移量': (self.le_dcconfirm_offset, 'setText'),
             '新内容的识别范围': (self.le_news, 'setText'),
             '新内容识别关键字': (self.le_new_keywords, 'setText'),
             '新内容二值化阈值': (self.le_news_binaryzation, 'setText'),
@@ -641,6 +645,16 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                 self_defined_args[setting_key] = settings_value
 
                 # print(f'获取更改后的值：{self_defined_args}')
+    
+    def pb_dcconfirm_offset_test_click(self):
+        """测试断线确认偏移量"""
+        self.update_settings()
+        offset_x, offset_y = self_defined_args['断线确认偏移量']
+        if offset_x > 0 and offset_y > 0 and offset_x < 50 and offset_y < 50:
+            disconnect_confirm()
+        else:
+            manager.sMessageBox("偏移量必须大于0且小于50！", "error", 5000)
+
 
 
 class Custom_select(QWidget, Ui_Custom_select):
@@ -2060,7 +2074,7 @@ def disconnect_confirm(sum=120) -> None:
             # print(f"disconnect_confirm已识别···")
             # 调用moveclick函数
             # print(f"关键字：{target_string},坐标：({confirmx}, {confirmy})")
-            MControl.moveclick(disconnect_check_colorXY[0] + confirmx, disconnect_check_colorXY[3] - confirmy,
+            MControl.moveclick(disconnect_check_colorXY[0] + confirmx + self_defined_args["断线确认偏移量"][0], disconnect_check_colorXY[3] - confirmy + self_defined_args["断线确认偏移量"][1],
                                1, 1)
             # 找到了坐标，跳出循环
             break
@@ -2702,6 +2716,7 @@ if __name__ == '__main__':
                          '断线检测二值化阈值': [110, 130, 1],
                          '断线检测识别关键字': ["好的", "关闭", "CLOSE", "继续", "CONTINUE"],
                          '断线确认关键字': ["好", "关", "继", "K", "C"],
+                         '断线确认偏移量': [0, 0],
                          '主界面的每日祭礼识别范围': [441, 255, 666, 343],
                          '主页面每日祭礼二值化阈值': [120, 130, 1],
                          '主页面每日祭礼识别关键字': ["每日", "DAILY RITUALS"],
@@ -2849,7 +2864,7 @@ if __name__ == '__main__':
     hotkey = threading.Thread(target=listen_key, daemon=True)
     tip = threading.Thread(target=hall_tip, daemon=True)
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
-    notice('test gic')  # 通知消息
+    notice('test git')  # 通知消息
     authorization('~x&amp;mBGbIneqSS(')  # 授权验证
     hotkey.start()  # 热键监听
     check_ocr()  # 检查初始化

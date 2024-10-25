@@ -1125,79 +1125,6 @@
            </sizepolicy>
           </property>
           <layout class="QGridLayout" name="gridLayout_6">
-           <item row="2" column="1">
-            <widget class="QLabel" name="lb_dccheck_keywords">
-             <property name="text">
-              <string>断线检测识别关键字</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="1">
-            <widget class="QLabel" name="lb_dcwords">
-             <property name="text">
-              <string>断线确认关键字</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLabel" name="lb_dccheck">
-             <property name="text">
-              <string>断线检测的识别范围</string>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="3">
-            <widget class="QLineEdit" name="le_season_reset"/>
-           </item>
-           <item row="0" column="4">
-            <spacer name="horizontalSpacer_22">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item row="2" column="3">
-            <widget class="QLineEdit" name="le_dccheck_keywords"/>
-           </item>
-           <item row="7" column="1">
-            <widget class="QLabel" name="lb_seasonresetxy">
-             <property name="text">
-              <string>段位重置按钮的坐标</string>
-             </property>
-            </widget>
-           </item>
-           <item row="6" column="1">
-            <widget class="QLabel" name="lb_sr_keywords">
-             <property name="text">
-              <string>段位重置识别关键字</string>
-             </property>
-            </widget>
-           </item>
-           <item row="6" column="3">
-            <widget class="QLineEdit" name="le_sr_keywords"/>
-           </item>
-           <item row="1" column="3">
-            <widget class="QLineEdit" name="le_discheck_binaryzation"/>
-           </item>
-           <item row="0" column="2">
-            <spacer name="horizontalSpacer_21">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
            <item row="0" column="3">
             <widget class="QLineEdit" name="le_dccheck">
              <property name="minimumSize">
@@ -1214,53 +1141,50 @@
              </property>
             </widget>
            </item>
-           <item row="7" column="3">
-            <widget class="QLineEdit" name="le_seasonresetxy">
-             <property name="minimumSize">
-              <size>
-               <width>165</width>
-               <height>0</height>
-              </size>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="3">
-            <widget class="QLineEdit" name="le_dcwords">
-             <property name="minimumSize">
-              <size>
-               <width>165</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="maximumSize">
-              <size>
-               <width>200</width>
-               <height>16777215</height>
-              </size>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="3">
-            <widget class="QLineEdit" name="le_seasonreset_binaryzation"/>
-           </item>
-           <item row="5" column="1">
-            <widget class="QLabel" name="lb_seasonreset_binaryzation">
-             <property name="text">
-              <string>段位重置二值化阈值</string>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="1">
-            <widget class="QLabel" name="lb_season_reset">
-             <property name="text">
-              <string>段位重置的识别范围</string>
-             </property>
-            </widget>
-           </item>
            <item row="1" column="1">
             <widget class="QLabel" name="lb_discheck_binaryzation">
              <property name="text">
               <string>断线检测二值化阈值</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="4">
+            <spacer name="horizontalSpacer_22">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="5" column="1">
+            <widget class="QLabel" name="lb_dcconfir_offset">
+             <property name="text">
+              <string>断线确认偏移量</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <spacer name="horizontalSpacer_21">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="7" column="1">
+            <widget class="QLabel" name="lb_seasonreset_binaryzation">
+             <property name="text">
+              <string>段位重置二值化阈值</string>
              </property>
             </widget>
            </item>
@@ -1276,6 +1200,151 @@
               </size>
              </property>
             </spacer>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLabel" name="lb_dccheck_keywords">
+             <property name="text">
+              <string>断线检测识别关键字</string>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="3">
+            <widget class="QLineEdit" name="le_seasonresetxy">
+             <property name="minimumSize">
+              <size>
+               <width>165</width>
+               <height>0</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="3">
+            <widget class="QLineEdit" name="le_season_reset"/>
+           </item>
+           <item row="9" column="1">
+            <widget class="QLabel" name="lb_seasonresetxy">
+             <property name="text">
+              <string>段位重置按钮的坐标</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="1">
+            <widget class="QLabel" name="lb_sr_keywords">
+             <property name="text">
+              <string>段位重置识别关键字</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="3">
+            <widget class="QLineEdit" name="le_sr_keywords"/>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="lb_dccheck">
+             <property name="text">
+              <string>断线检测的识别范围</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QLabel" name="lb_dcwords">
+             <property name="text">
+              <string>断线确认关键字</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="3">
+            <widget class="QLineEdit" name="le_dccheck_keywords"/>
+           </item>
+           <item row="6" column="1">
+            <widget class="QLabel" name="lb_season_reset">
+             <property name="text">
+              <string>段位重置的识别范围</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="3">
+            <widget class="QLineEdit" name="le_seasonreset_binaryzation"/>
+           </item>
+           <item row="5" column="3">
+            <widget class="QFrame" name="frame">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::StyledPanel</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Raised</enum>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_3">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item alignment="Qt::AlignLeft">
+               <widget class="QLineEdit" name="le_dcconfirm_offset">
+                <property name="minimumSize">
+                 <size>
+                  <width>100</width>
+                  <height>0</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="pb_dcconfirm_offset_test">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>50</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="focusPolicy">
+                 <enum>Qt::NoFocus</enum>
+                </property>
+                <property name="text">
+                 <string>测试</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QLineEdit" name="le_discheck_binaryzation"/>
+           </item>
+           <item row="4" column="3">
+            <widget class="QLineEdit" name="le_dcwords">
+             <property name="minimumSize">
+              <size>
+               <width>165</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>200</width>
+               <height>16777215</height>
+              </size>
+             </property>
+            </widget>
            </item>
           </layout>
          </widget>
