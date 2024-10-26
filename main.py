@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from ast import List
 import atexit
 import copy
 import ctypes
@@ -426,6 +427,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         super().__init__()
         self.setupUi(self)
         self.setWindowIcon(QIcon(":advanced/picture/advanced.png"))
+        self.content_changed  = False
         # 控件到设置键的反向映射
         self.reverse_mapping = {
             self.te_killer_message: '赛后发送消息',
@@ -471,6 +473,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             self.le_dccheck_keywords: '断线检测识别关键字',
             self.le_discheck_binaryzation: '断线检测二值化阈值',
             self.le_dcwords: '断线确认关键字',
+            self.le_dcconfirm_offset: '断线确认偏移量',
             self.le_news: '新内容的识别范围',
             self.le_news_binaryzation: '新内容二值化阈值',
             self.le_new_keywords: '新内容识别关键字',
@@ -496,6 +499,9 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         self.previous_gif = GifButton(self.pb_previous, ":mainwindow/picture/previous.gif")
         self.reset_gif = GifButton(self.pb_reset, ":advanced/picture/reset.gif")
 
+        for widget in self.reverse_mapping.keys():
+            widget.textChanged.connect(self.on_content_change)
+
     def init_signals(self):
         """初始化信号和槽连接"""
 
@@ -503,6 +509,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         self.pb_previous.clicked.connect(self.pb_prev_click)
         self.pb_save.clicked.connect(self.pb_save_click)
         self.pb_reset.clicked.connect(self.pb_reset_click)
+        self.pb_dcconfirm_offset_test.clicked.connect(self.pb_dcconfirm_offset_test_click)
 
     def load_settings(self):
         """初始化加载设置文件内容"""
@@ -551,6 +558,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             '断线检测识别关键字': (self.le_dccheck_keywords, 'setText'),
             '断线检测二值化阈值': (self.le_discheck_binaryzation, 'setText'),
             '断线确认关键字': (self.le_dcwords, 'setText'),
+            '断线确认偏移量': (self.le_dcconfirm_offset, 'setText'),
             '新内容的识别范围': (self.le_news, 'setText'),
             '新内容识别关键字': (self.le_new_keywords, 'setText'),
             '新内容二值化阈值': (self.le_news_binaryzation, 'setText'),
@@ -617,6 +625,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
         self.retranslateUi(self)
         manager.sMessageBox("保存成功！", 'info')
+        self.content_changed = False
 
     def update_settings(self):
         """获取更改后的数值"""
@@ -639,8 +648,32 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                     pass
                 # 更新 self_defined_args 字典
                 self_defined_args[setting_key] = settings_value
-
                 # print(f'获取更改后的值：{self_defined_args}')
+    
+    def on_content_change(self):
+        self.content_changed = True
+
+    def pb_dcconfirm_offset_test_click(self):
+        """测试断线确认偏移量"""
+        self.update_settings()
+        try:
+            offset_x, offset_y = self_defined_args['断线确认偏移量']
+        except ValueError:
+            manager.sMessageBox("偏移量格式错误！", "error", 5000)
+            return
+        if offset_x >= -50 and offset_y >= -50 and offset_x < 50 and offset_y < 50:
+            disconnect_confirm()
+        else:
+            manager.sMessageBox("偏移量范围为-50~50！", "error", 5000)
+    
+    def closeEvent(self, event):
+        if self.content_changed is True:
+            reply = QMessageBox.question(self, '提示', '是否保存更改？', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.pb_save_click()
+            else:
+                event.accept()
+
 
 
 class Custom_select(QWidget, Ui_Custom_select):
@@ -1158,8 +1191,8 @@ class LogView(QMainWindow):
         self.start_thread_signal.connect(self.start_log_reading)
 
     def initUI(self):
-        game_window = MControl.get_window_rect()
-        self.setGeometry(game_window.right - 210, game_window.top, 200, 175)
+        screen_width, screen_height, screen_scale_rate = get_screen_size()
+        self.setGeometry(screen_width - 210, screen_height, 200, 175)
         self.setWindowOpacity(0.75)
         self.setWindowFlags(
             Qt.Tool |
@@ -1315,12 +1348,45 @@ class Stage:
                 log.info(f"在'{self.stage_name}'阶段停留时间过长，触发BV循环")
 
     def exit_stage(self):
-        """离开阶段时，重置开关"""
+        """检测到即视为离开阶段，并重置计时开关"""
         self.entry_time = None  # 重置进入时间
         if self.long_stay_switch:
             log.info(f"成功！BV循环已关闭。")
         self.long_stay_switch = False
         self.log_recorded = False
+    
+
+def game_stage_redress(game_stage):
+    """游戏状态机,阶段纠察机制"""
+    while True:
+        if game_stage == "":
+            pass
+        elif starthall() and game_stage != "匹配":
+            MControl.moveclick(self_defined_args['开始游戏按钮的坐标'][0], 
+                               self_defined_args['开始游戏按钮的坐标'][1], 1)
+            MControl.moveclick(20, 689, 1, 3)  # 商城上空白
+            log.debug(f"当前实际为匹配阶段，正在尝试纠正阶段紊乱！")
+        elif readyhall() and game_stage != "准备":
+            MControl.moveclick(self_defined_args['准备就绪按钮的坐标'][0], 
+                               self_defined_args['准备就绪按钮的坐标'][1], 1)
+            MControl.moveclick(20, 689, 1, 3)  # 商城上空白
+            log.debug(f"当前实际为准备阶段，正在尝试纠正阶段紊乱！")
+        elif gameover() and game_stage != "结束":
+            # 判断段位重置
+            if season_reset():
+                MControl.moveclick(self_defined_args['段位重置按钮的坐标'][0],
+                                   self_defined_args['段位重置按钮的坐标'][1], click_delay=1)
+            # 祭礼完成
+            if rites():
+                MControl.moveclick(self_defined_args['结算页祭礼完成坐标'][0],
+                                   self_defined_args['结算页祭礼完成坐标'][1], 0.5, 1)
+                MControl.moveclick(self_defined_args['结算页祭礼完成坐标'][2],
+                                   self_defined_args['结算页祭礼完成坐标'][3])
+            MControl.moveclick(self_defined_args['结算页继续按钮坐标'][0], 
+                               self_defined_args['结算页继续按钮坐标'][1], 0.5, 1)  # return hall
+            MControl.moveclick(10, 10, 1, 3)  # 避免遮挡
+            log.debug(f"当前实际为结束阶段，正在尝试纠正阶段紊乱！")
+        time.sleep(60)
 
 
 def begin():
@@ -1329,6 +1395,10 @@ def begin():
     if not begin_state:
         open(LOG_PATH, 'w').close()
         save_cfg()
+        if dbdWindowUi.cb_detailed_log.isChecked():
+            change_log_level(logging.DEBUG)
+        else:
+            change_log_level(logging.INFO)
         if start_check():
             manager.sMessageBox("脚本已启动！正在运行中···", 'info')
             screen_age()
@@ -1556,6 +1626,17 @@ def notice(notice_now: str):
         win32api.MessageBox(0, notice, "通知", win32con.MB_OK | win32con.MB_ICONINFORMATION)
 
 
+def change_log_level(new_level):
+    """动态修改日志级别，
+    :param new_level: 日志级别:logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL"""
+    if new_level == logging.DEBUG:
+        level = "『详细日志』"
+    elif new_level == logging.INFO:
+        level = "『信息日志』"
+    log.getLogger().setLevel(new_level)
+    log.info(f'当前日志等级为：{level}')
+
+
 def close_logger():
     """关闭日志记录器"""
     for handler in logging.root.handlers:
@@ -1763,28 +1844,26 @@ def ocr_range_inspection(identification_key: str,
 
             # 调用img_ocr函数，传入坐标和二值化阈值
             ocr_result = ocr_func(x1, y1, x2, y2, sum=threshold)
-            if dbdWindowUi.cb_detailed_log.isChecked():
-                log.debug(f"{name}.OCR 识别内容为：{ocr_result}")
+            log.debug(f"{name}.OCR 识别内容为：{ocr_result}")
 
             if any(keyword in ocr_result for keyword in keywords):
 
-                if dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 0:
+                if dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 1:  # 1 - open, 0 - close
                     # if min_sum_name != '断线检测二值化阈值':
-                    self_defined_args[min_sum_name][2] = 1
+                    self_defined_args[min_sum_name][2] = 0
                     # 将更新后的键值对写回文件
                     with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
                         json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
 
                 return True
-            elif ((dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 0) or
+            elif ((dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 1) or
                   stage_monitor.long_stay_switch is True):
 
                 new_threshold = threshold - 10  # 递减一个步长作为新的阈值
                 if new_threshold < 30:  # 确保不低于停止值
                     new_threshold = threshold_high
                 self_defined_args[min_sum_name][0] = new_threshold
-                if dbdWindowUi.cb_detailed_log.isChecked():
-                    log.debug(f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
+                log.debug(f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
 
             return False
 
@@ -2003,8 +2082,7 @@ def disconnect_confirm(sum=120) -> None:
         # 确保临时文件被删除，防止内存泄露和磁盘空间占用
         os.unlink(temp_path)
 
-    if dbdWindowUi.cb_detailed_log.isChecked():
-        log.debug(f"断线确认识别内容为：{result}\n")
+    log.debug(f"断线确认识别内容为：{result}\n")
 
     # 定义需要查找的字符串列表
     target_strings = self_defined_args["断线确认关键字"]
@@ -2016,7 +2094,7 @@ def disconnect_confirm(sum=120) -> None:
             # print(f"disconnect_confirm已识别···")
             # 调用moveclick函数
             # print(f"关键字：{target_string},坐标：({confirmx}, {confirmy})")
-            MControl.moveclick(disconnect_check_colorXY[0] + confirmx, disconnect_check_colorXY[3] - confirmy,
+            MControl.moveclick(disconnect_check_colorXY[0] + confirmx + self_defined_args["断线确认偏移量"][0], disconnect_check_colorXY[3] - confirmy + self_defined_args["断线确认偏移量"][1],
                                1, 1)
             # 找到了坐标，跳出循环
             break
@@ -2352,7 +2430,7 @@ def start_check() -> bool:
 
 def afk() -> None:
     """挂机主体函数"""
-    global stop_space, stop_action, index
+    global stop_space, stop_action, index, game_stage
     list_number = len(custom_select.select_killer_lst)
     circulate_number = 0
     win32gui.SetForegroundWindow(hwnd)
@@ -2363,7 +2441,8 @@ def afk() -> None:
         匹配
         '''
         matching = False
-        stage_monitor.enter_stage('匹配')
+        game_stage = '匹配'
+        stage_monitor.enter_stage(game_stage)
         while not matching:
             if event.is_set():
                 break
@@ -2395,11 +2474,13 @@ def afk() -> None:
                     MControl.moveclick(20, 689, 1, 5)  # 商城上空白
                     if not starthall():
                         matching = True
+                        game_stage = ""
                         log.info(f"第{circulate_number}次脚本循环---开始匹配!")
             elif disconnect_check():
                 reconnection = reconnect()
                 matching = True
                 stage_monitor.exit_stage()
+                game_stage = ""
 
             stage_monitor.check_stay_time(600)
 
@@ -2423,9 +2504,11 @@ def afk() -> None:
         准备
         '''
         ready_room = dbdWindowUi.cb_debug.isChecked()
-        stage_monitor.enter_stage('准备')
+        game_stage = '准备'
+        stage_monitor.enter_stage(game_stage)
         if ready_room:
             stage_monitor.exit_stage()
+            game_stage = ""
         while not ready_room:
             if event.is_set():
                 break
@@ -2441,11 +2524,13 @@ def afk() -> None:
                 MControl.moveclick(20, 689, 1, 3)  # 商城上空白
                 if not readyhall():
                     ready_room = True
+                    game_stage = ""
                     log.info(f"第{circulate_number}次脚本循环---准备完成!")
             elif disconnect_check():
                 reconnection = reconnect()
                 ready_room = True
                 stage_monitor.exit_stage()
+                game_stage = ""
             stage_monitor.check_stay_time(600)
         # 重连返回值判断
         if reconnection:
@@ -2476,7 +2561,8 @@ def afk() -> None:
         auto_action.start()
         game = False
         log.info(f"第{circulate_number}次脚本循环---进入对局···")
-        stage_monitor.enter_stage('结算')
+        game_stage = '结算'
+        stage_monitor.enter_stage(game_stage)
         while not game:
             if event.is_set():
                 break
@@ -2513,15 +2599,19 @@ def afk() -> None:
                 MControl.moveclick(10, 10, 1, 3)  # 避免遮挡
                 if not gameover():
                     game = True
+                    game_stage = ""
                     log.info(f"第{circulate_number}次脚本循环---正在返回匹配大厅···\n")
                 elif disconnect_check():
                     reconnection = reconnect()
                     game = True
+                    stage_monitor.exit_stage()
+                    game_stage = ""
             else:
                 if disconnect_check():
                     reconnection = reconnect()
                     game = True
                     stage_monitor.exit_stage()
+                    game_stage = ""
             stage_monitor.check_stay_time(900)
 
         # 重连返回值判断
@@ -2623,41 +2713,42 @@ if __name__ == '__main__':
                          '装备配置2的坐标': [950, 60],
                          '装备配置3的坐标': [1000, 60],
                          '匹配阶段的识别范围': [1446, 771, 1920, 1080],
-                         '匹配大厅二值化阈值': [120, 130, 1],
+                         '匹配大厅二值化阈值': [120, 130, 0],
                          '匹配大厅识别关键字': ["开始游戏", "PLAY"],
                          '开始游戏按钮的坐标': [1742, 931],
                          '准备阶段的识别范围': [1446, 771, 1920, 1080],
-                         '准备房间二值化阈值': [120, 130, 1],
+                         '准备房间二值化阈值': [120, 130, 0],
                          '准备大厅识别关键字': ["准备就绪", "READY"],
                          '准备就绪按钮的坐标': [1742, 931],
                          '结算页的识别范围': [56, 46, 370, 172],
-                         '结算页二值化阈值': [70, 130, 1],
+                         '结算页二值化阈值': [70, 130, 0],
                          '结算页识别关键字': ["比赛", "得分", "你的", "MATCH", "SCORE"],
                          '结算页继续按钮坐标': [1761, 1009],
                          '结算页每日祭礼的识别范围': [106, 267, 430, 339],
-                         '结算页每日祭礼二值化阈值': [120, 130, 1],
+                         '结算页每日祭礼二值化阈值': [120, 130, 0],
                          '结算页每日祭礼识别关键字': ["每日", "DAILY RITUALS"],
                          '结算页祭礼完成坐标': [396, 718, 140, 880],
                          '段位重置的识别范围': [192, 194, 426, 291],
-                         '段位重置二值化阈值': [120, 130, 1],
+                         '段位重置二值化阈值': [120, 130, 0],
                          '段位重置识别关键字': ["重置", "RESET"],
                          '段位重置按钮的坐标': [1468, 843],
                          '断线检测的识别范围': [457, 530, 1488, 796],
-                         '断线检测二值化阈值': [110, 130, 1],
+                         '断线检测二值化阈值': [110, 130, 0],
                          '断线检测识别关键字': ["好的", "关闭", "CLOSE", "继续", "CONTINUE"],
                          '断线确认关键字': ["好", "关", "继", "K", "C"],
+                         '断线确认偏移量': [0, 0],
                          '主界面的每日祭礼识别范围': [441, 255, 666, 343],
-                         '主页面每日祭礼二值化阈值': [120, 130, 1],
+                         '主页面每日祭礼二值化阈值': [120, 130, 0],
                          '主页面每日祭礼识别关键字': ["每日", "DAILY RITUALS"],
                          '主页面祭礼关闭坐标': [545, 880],
                          '主页面的识别范围': [203, 78, 365, 135],
-                         '主页面二值化阈值': [120, 130, 1],
+                         '主页面二值化阈值': [120, 130, 0],
                          '主页面识别关键字': ["开始", "PLAY"],
                          '主页面开始坐标': [320, 100],
                          '主页面逃生者坐标': [339, 320],
                          '主页面杀手坐标': [328, 224],
                          '新内容的识别范围': [548, 4, 1476, 256],
-                         '新内容二值化阈值': [120, 130, 1],
+                         '新内容二值化阈值': [120, 130, 0],
                          '新内容识别关键字': ["新内容", "NEW CONTENT"],
                          '新内容关闭坐标': [1413, 992],
                          '坐标转换开关': 0,
@@ -2756,11 +2847,11 @@ if __name__ == '__main__':
     # 配置日志格式
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
     file_handler = logging.FileHandler(LOG_PATH, encoding='utf-8')  # 配置文件处理器，将日志写入文件
-    file_handler.setLevel(logging.DEBUG)  # 设置处理器的日志级别
+    file_handler.setLevel(logging.INFO)  # 设置处理器的日志级别
     formatter = logging.Formatter(log_format)
     file_handler.setFormatter(formatter)
     log = logging.getLogger(__name__)  # 获取日志记录器对象
-    log.setLevel(logging.DEBUG)  # 设置记录器的日志级别
+    log.setLevel(logging.INFO)  # 设置记录器的日志级别
     log.addHandler(file_handler)
     atexit.register(close_logger)  # 程序退出时关闭日志
     sys.excepthook = global_exception  # 全局未捕获异常捕获
@@ -2779,6 +2870,7 @@ if __name__ == '__main__':
     screen = QApplication.primaryScreen()
     begin_state = False  # 开始状态
     index = 0  # 列表的下标
+    game_stage = ""  # 游戏阶段
     # 动作标志
     pause = False  # 监听暂停标志
     stop_thread = False  # 检查tip标志
