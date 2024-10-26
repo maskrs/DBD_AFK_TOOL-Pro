@@ -17,7 +17,7 @@ def release_key(key) -> None:
     key_up(key)
 
 
-def press_mosue(mouse_button='左键') -> None:
+def press_mouse(mouse_button='左键') -> None:
     """按下鼠标
     :param mouse_button: 鼠标按键，'left' 或 'right'"""
     button = ''
