@@ -1,45 +1,46 @@
 #  -*- This file contains some functions for game operation -- key. -*-
 
 import random
-import pyautogui as py
 import time
-from Utils.background_operation import key_down, key_up
+from Utils.background_operation import key_down, key_up, mouse_down, mouse_up
 
 
-def press_key(hwnd, key) -> None:
+def press_key(key) -> None:
     """按下按键
-    :param hwnd: 窗口句柄
     :param key: 按键"""
-    key_down(hwnd, key)
+    key_down(key)
 
 
-def release_key(hwnd, key) -> None:
+def release_key(key) -> None:
     """释放按键
-    :param hwnd: 窗口句柄
     :param key: 按键"""
-    key_up(hwnd, key)
+    key_up(key)
 
 
-def mouse_down(mouse_button='左键') -> None:
+def press_mosue(mouse_button='左键') -> None:
     """按下鼠标
     :param mouse_button: 鼠标按键，'left' 或 'right'"""
     button = ''
-    if mouse_button == '左键':
-        button = 'left'
-    elif mouse_button == '右键':
-        button = 'right'
-    py.mouseDown(button=button)
+    if mouse_button == '左键' or mouse_button == 'left':
+        button = 'mouse_left'
+    elif mouse_button == '右键' or mouse_button == 'right':
+        button = 'mouse_right'
+    elif mouse_button == '中键' or mouse_button == 'middle':
+        button = "mouse_middle"
+    mouse_down(button)
 
 
-def mouse_up(mouse_button='左键') -> None:
+def release_mouse(mouse_button='左键') -> None:
     """释放鼠标
     :param mouse_button: 鼠标按键，'left' 或 'right'"""
     button = ''
-    if mouse_button == '左键':
-        button = 'left'
-    elif mouse_button == '右键':
-        button = 'right'
-    py.mouseUp(button=button)
+    if mouse_button == '左键' or mouse_button == 'left':
+        button = 'mouse_left'
+    elif mouse_button == '右键' or mouse_button == 'right':
+        button = 'mouse_right'
+    elif mouse_button == '中键' or mouse_button == 'middle':
+        button = "mouse_middle"
+    mouse_up(button)
 
 
 def delay(seconds) -> None:
@@ -96,56 +97,51 @@ def random_veertime(min: float = 0.275, max: float = 0.4) -> float:
     return rn
 
 
-def random_move(hwnd, move_time: float) -> None:
+def random_move(move_time: float) -> None:
     """随机移动动作
-    :param hwnd: 窗口句柄
     :param move_time: 行走时间"""
     act_move = random_movement()
-    key_down(hwnd, act_move)
+    key_down(act_move)
     time.sleep(move_time)
-    key_up(hwnd, act_move)
+    key_up(act_move)
 
 
-def random_veer(hwnd, veer_time: float) -> None:
+def random_veer(veer_time: float) -> None:
     """随机转向动作
-    :param hwnd: 窗口句柄
     :param veer_time: 旋转时间"""
     act_direction = random_direction()
-    key_down(hwnd, act_direction)
+    key_down(act_direction)
     time.sleep(veer_time)
-    key_up(hwnd, act_direction)
+    key_up(act_direction)
 
 
-def killer_ctrl(hwnd, skill_key: str = 'lcontrol', skill_time: float = 4.3) -> None:
+def killer_ctrl(skill_key: str = 'lcontrol', skill_time: float = 4.3) -> None:
     """杀手ctrl技能释放
     :param skill_time: 技能释放时间
-    :param hwnd: 窗口句柄
     :param skill_key: 释放技能的按键，默认 'lcontrol'"""
-    key_down(hwnd, skill_key)
+    key_down(skill_key)
     time.sleep(skill_time)
-    key_up(hwnd, skill_key)
+    key_up(skill_key)
 
 
-def killer_skillclick(hwnd, skill_key: str = 'lcontrol') -> None:
+def killer_skillclick(skill_key: str = 'lcontrol') -> None:
     """杀手右键+左键技能释放
-    :param hwnd: 窗口句柄
     :param skill_key: 释放技能的按键，默认 'lcontrol'"""
-    py.mouseDown(button='right')
+    mouse_down("mouse_right")
     time.sleep(3)
-    py.mouseDown()
-    py.mouseUp()
-    py.mouseUp(button='right')
+    mouse_down()
+    mouse_up()
+    mouse_up("mouse_right")
     time.sleep(2)
-    key_down(hwnd, skill_key)
-    key_up(hwnd, skill_key)
+    key_down(skill_key)
+    key_up(skill_key)
 
 
-def killer_skill(hwnd, skill_key: str = 'lcontrol') -> None:
+def killer_skill(skill_key: str = 'lcontrol') -> None:
     """杀手右键技能释放
-    :param hwnd: 窗口句柄
     :param skill_key: 释放技能的按键，默认 'lcontrol'"""
-    py.mouseDown(button='right')
+    mouse_down("mouse_right")
     time.sleep(3)
-    key_down(hwnd, skill_key)
-    key_up(hwnd, skill_key)
-    py.mouseUp(button='right')
+    key_down(skill_key)
+    key_up(skill_key)
+    mouse_up("mouse_right")

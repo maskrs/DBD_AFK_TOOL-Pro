@@ -1,93 +1,73 @@
-import string
 import ctypes
-from ctypes import windll, byref, sizeof
-from ctypes.wintypes import HWND
+import pynput
+from ctypes import byref, sizeof
 from ctypes import wintypes
 from PIL import Image  # pillow == 9.3.0
 from PIL import ImageGrab
 from PIL import UnidentifiedImageError
 from PyQt5.QtGui import QImage
 
+keyboard = pynput.keyboard.Controller()
+mouse = pynput.mouse.Controller()
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
-PostMessageW = windll.user32.PostMessageW
-ClientToScreen = windll.user32.ClientToScreen
-MapVirtualKeyW = windll.user32.MapVirtualKeyW
-VkKeyScanA = windll.user32.VkKeyScanA
-WM_KEYDOWN = 0x100
-WM_KEYUP = 0x101
-WM_MOUSEMOVE = 0x0200
-WM_LBUTTONDOWN = 0x0201
-WM_LBUTTONUP = 0x202
-WM_MOUSEWHEEL = 0x020A
-WHEEL_DELTA = 120
-# 定义消息类型
-WM_COMMAND = 0x0111
 
-# https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+
 VkCode = {
-    "back": 0x08,
-    "tab": 0x09,
-    "return": 0x0D,
-    "backspace": 0x08,
-    "shift": 0x10,
-    "control": 0x11,
-    "alt": 0x12,
-    "menu": 0x12,
-    "pause": 0x13,
-    "capital": 0x14,
-    "escape": 0x1B,
-    "space": 0x20,
-    "end": 0x23,
-    "home": 0x24,
-    "left": 0x25,
-    "up": 0x26,
-    "right": 0x27,
-    "down": 0x28,
-    "print": 0x2A,
-    "snapshot": 0x2C,
-    "insert": 0x2D,
-    "delete": 0x2E,
-    "lwin": 0x5B,
-    "rwin": 0x5C,
-    "numpad0": 0x60,
-    "numpad1": 0x61,
-    "numpad2": 0x62,
-    "numpad3": 0x63,
-    "numpad4": 0x64,
-    "numpad5": 0x65,
-    "numpad6": 0x66,
-    "numpad7": 0x67,
-    "numpad8": 0x68,
-    "numpad9": 0x69,
-    "multiply": 0x6A,
-    "add": 0x6B,
-    "separator": 0x6C,
-    "subtract": 0x6D,
-    "decimal": 0x6E,
-    "divide": 0x6F,
-    "f1": 0x70,
-    "f2": 0x71,
-    "f3": 0x72,
-    "f4": 0x73,
-    "f5": 0x74,
-    "f6": 0x75,
-    "f7": 0x76,
-    "f8": 0x77,
-    "f9": 0x78,
-    "f10": 0x79,
-    "f11": 0x7A,
-    "f12": 0x7B,
-    "numlock": 0x90,
-    "scroll": 0x91,
-    "lshift": 0xA0,
-    "rshift": 0xA1,
-    "lcontrol": 0xA2,
-    "rcontrol": 0xA3,
-    "lalt": 0xA4,
-    "ralt": 0xA5,
-    "lmenu": 0xA4,
-    "rmenu": 0XA5
+    "tab": pynput.keyboard.Key.tab,  # 0x09
+    "enter": pynput.keyboard.Key.enter,  # 0x0D
+    "backspace": pynput.keyboard.Key.backspace,  # 0x08
+    "shift": pynput.keyboard.Key.shift,  # 0x10
+    "control": pynput.keyboard.Key.ctrl,  # 0x11
+    "alt": pynput.keyboard.Key.alt,  # 0x12
+    "menu": pynput.keyboard.Key.menu,  # 0x12
+    "pause": pynput.keyboard.Key.pause,  # 0x13
+    "caps_lock": pynput.keyboard.Key.caps_lock,  # 0x14
+    "escape": pynput.keyboard.Key.esc,  # 0x1B
+    "space": pynput.keyboard.Key.space,  # 0x20
+    "end": pynput.keyboard.Key.end,  # 0x23
+    "home": pynput.keyboard.Key.home,  # 0x24
+    "left": pynput.keyboard.Key.left,  # 0x25
+    "up": pynput.keyboard.Key.up,  # 0x26
+    "right": pynput.keyboard.Key.right,  # 0x27
+    "down": pynput.keyboard.Key.down,  # 0x28
+    "print_screen": pynput.keyboard.Key.print_screen,  # 0x2C
+    "insert": pynput.keyboard.Key.insert,  # 0x2D
+    "delete": pynput.keyboard.Key.delete,  # 0x2E
+    "numpad0": pynput.keyboard.KeyCode.from_vk(96),  # 0x60
+    "numpad1": pynput.keyboard.KeyCode.from_vk(97),  # 0x61
+    "numpad2": pynput.keyboard.KeyCode.from_vk(98),  # 0x62
+    "numpad3": pynput.keyboard.KeyCode.from_vk(99),  # 0x63
+    "numpad4": pynput.keyboard.KeyCode.from_vk(100),  # 0x64
+    "numpad5": pynput.keyboard.KeyCode.from_vk(101),  # 0x65
+    "numpad6": pynput.keyboard.KeyCode.from_vk(102),  # 0x66
+    "numpad7": pynput.keyboard.KeyCode.from_vk(103),  # 0x67
+    "numpad8": pynput.keyboard.KeyCode.from_vk(104),  # 0x68
+    "numpad9": pynput.keyboard.KeyCode.from_vk(105),  # 0x69
+    "f1": pynput.keyboard.KeyCode.from_vk(112),  # 0x70
+    "f2": pynput.keyboard.KeyCode.from_vk(113),  # 0x71
+    "f3": pynput.keyboard.KeyCode.from_vk(114),  # 0x72
+    "f4": pynput.keyboard.KeyCode.from_vk(115),  # 0x73
+    "f5": pynput.keyboard.KeyCode.from_vk(116),  # 0x74
+    "f6": pynput.keyboard.KeyCode.from_vk(117),  # 0x75
+    "f7": pynput.keyboard.KeyCode.from_vk(118),  # 0x76
+    "f8": pynput.keyboard.KeyCode.from_vk(119),  # 0x77
+    "f9": pynput.keyboard.KeyCode.from_vk(120),  # 0x78
+    "f10": pynput.keyboard.KeyCode.from_vk(121),  # 0x79
+    "f11": pynput.keyboard.KeyCode.from_vk(122),  # 0x7A
+    "f12": pynput.keyboard.KeyCode.from_vk(123),  # 0x7B
+    "lshift": pynput.keyboard.Key.shift_l,  # 0xA0
+    "rshift": pynput.keyboard.Key.shift_r,  # 0xA1
+    "lcontrol": pynput.keyboard.Key.ctrl_l,  # 0xA2
+    "rcontrol": pynput.keyboard.Key.cmd_r,  # 0xA3
+    "lalt": pynput.keyboard.Key.alt_l,  # 0xA4
+    "ralt": pynput.keyboard.Key.alt_r,  # 0xA5
+}
+
+MouseCode = {
+    "mouse_left": pynput.mouse.Button.left,
+    "mouse_right": pynput.mouse.Button.right,
+    "mouse_middle": pynput.mouse.Button.middle
 }
 
 
@@ -100,41 +80,57 @@ def get_virtual_keycode(key: str):
     Returns:
         int: 虚拟按键码
     """
-    if len(key) == 1 and key in string.printable:
-        # https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-vkkeyscana
-        return VkKeyScanA(ord(key)) & 0xff
-    else:
+    if key in VkCode:
         return VkCode[key]
+    else:
+        return key
 
 
-def key_down(handle: HWND, key: str):
+def get_virtual_mousecode(key: str):
+    if key in MouseCode:
+        return MouseCode[key]
+    else:
+        return None
+
+
+def key_down(key: str):
     """按下指定按键
 
     Args:
-        handle (HWND): 窗口句柄
         key (str): 按键名
     """
-    vk_code = get_virtual_keycode(key)
-    scan_code = MapVirtualKeyW(vk_code, 0)
-    # https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
-    wparam = vk_code
-    lparam = (scan_code << 16) | 1
-    PostMessageW(handle, WM_KEYDOWN, wparam, lparam)
+    try:
+        vk_code = get_virtual_keycode(key)
+        keyboard.press(vk_code)
+    except AttributeError:
+        pass
 
 
-def key_up(handle: HWND, key: str):
+def key_up(key: str):
     """放开指定按键
 
     Args:
-        handle (HWND): 窗口句柄
         key (str): 按键名
     """
-    vk_code = get_virtual_keycode(key)
-    scan_code = MapVirtualKeyW(vk_code, 0)
-    # https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keyup
-    wparam = vk_code
-    lparam = (scan_code << 16) | 0XC0000001
-    PostMessageW(handle, WM_KEYUP, wparam, lparam)
+    try:
+        vk_code = get_virtual_keycode(key)
+        keyboard.release(vk_code)
+    except AttributeError:
+        pass
+
+def mouse_down(key: str = "mouse_left"):
+    try:
+        mosue_code = get_virtual_mousecode(key)
+        mouse.press(mosue_code)
+    except AttributeError:
+        pass
+
+def mouse_up(key: str = "mouse_left"):
+    try:
+        mosue_code = get_virtual_mousecode(key)
+        mouse.release(mosue_code)
+    except AttributeError:
+        pass
 
 
 # 定义 BITMAPINFOHEADER 结构体
