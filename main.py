@@ -500,7 +500,10 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         self.reset_gif = GifButton(self.pb_reset, ":advanced/picture/reset.gif")
 
         for widget in self.reverse_mapping.keys():
-            widget.textChanged.connect(self.on_content_change)
+            if isinstance(widget, QLineEdit):
+                widget.textChanged.connect(self.on_content_change)
+            elif isinstance(widget, QTextEdit):
+                widget.textChanged.connect(self.on_content_change)
 
     def init_signals(self):
         """初始化信号和槽连接"""
@@ -594,6 +597,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                 # print(f"\nUpdated {key} to {arg}")
             else:
                 QMessageBox.warning(self, "错误", "键值不在参数文件中")
+        self.content_changed = False
 
     def pb_next_click(self):
         index = self.stackedWidget.currentIndex()
@@ -667,7 +671,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             manager.sMessageBox("偏移量范围为-50~50！", "error", 5000)
     
     def closeEvent(self, event):
-        if self.content_changed is True:
+        if self.content_changed == True:
             reply = QMessageBox.question(self, '提示', '是否保存更改？', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.pb_save_click()
