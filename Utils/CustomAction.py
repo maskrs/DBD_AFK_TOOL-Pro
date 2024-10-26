@@ -17,7 +17,7 @@ class ActionExecutor:
         self.function_map = {
             '按下': press_key,
             '释放': release_key,
-            '按下鼠标': press_mosue,
+            '按下鼠标': press_mouse,
             '释放鼠标': release_mouse,
             '等待': delay,
             '随机移动': random_move,

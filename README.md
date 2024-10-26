@@ -1,1 +1,1 @@
-# 本仓库不再提供MD文档，软件使用的说明文档，请[点击查看](https://x06w8gh3wwh.feishu.cn/wiki/JKjhwJBNFi6pj5kBoB1cS7HGnkU)。
+# 本仓库不再提供MD文档，工具使用的说明文档，请[点击查看](https://x06w8gh3wwh.feishu.cn/wiki/JKjhwJBNFi6pj5kBoB1cS7HGnkU)。

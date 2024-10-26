@@ -23,7 +23,7 @@ import requests
 import win32api
 import win32con
 import win32gui
-import keyboard
+from pynput import keyboard
 import logging
 import sentry_sdk
 import win32print
@@ -38,7 +38,7 @@ from configparser import ConfigParser
 from operator import eq, gt, ge, ne
 from PyQt5.QtCore import QTranslator, QLocale, Qt, QCoreApplication, QThread, pyqtSignal, QRegExp, QEvent, \
     pyqtSlot, QObject
-from PyQt5.QtGui import QIcon, QPalette, QSyntaxHighlighter, QTextCharFormat, QFont, QColor, QMovie, QTextCursor
+from PyQt5.QtGui import QIcon, QPalette, QSyntaxHighlighter, QTextCharFormat, QFont, QColor, QMovie, QGuiApplication
 from PyQt5.QtWidgets import *
 from typing import Callable, Optional
 
@@ -54,7 +54,7 @@ from UI.SettingsUI import Ui_SettingDialog
 from UI.CrashReportUI import Ui_CrashReportDialog
 from UI.Notification import NotificationManager
 
-from Utils.GameOperate import (press_key, release_key, press_mosue, release_mouse, random_direction, random_movement, random_move, random_veer, killer_ctrl,
+from Utils.GameOperate import (press_key, release_key, press_mouse, release_mouse, random_direction, random_movement, random_move, random_veer, killer_ctrl,
                                killer_skill, killer_skillclick)
 from Utils.background_operation import screenshot
 from Utils.CustomAction import ActionExecutor
@@ -1195,8 +1195,11 @@ class LogView(QMainWindow):
         self.start_thread_signal.connect(self.start_log_reading)
 
     def initUI(self):
-        screen_width, screen_height, screen_scale_rate = get_screen_size()
-        self.setGeometry(screen_width - 210, screen_height, 200, 175)
+        _, _, screen_scale_rate = get_screen_size()
+        self.top_right_x, self.top_right_y = self.get_window_client_corners(hwnd)
+        self.logview_x = int((self.top_right_x - 210*screen_scale_rate)/screen_scale_rate)
+        self.logview_y = int(self.top_right_y/screen_scale_rate)
+        self.setGeometry(self.logview_x, self.logview_y, 200, 175)
         self.setWindowOpacity(0.75)
         self.setWindowFlags(
             Qt.Tool |
@@ -1225,6 +1228,19 @@ class LogView(QMainWindow):
         central_widget.setLayout(layout)
         central_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setCentralWidget(central_widget)
+
+    @staticmethod
+    def get_window_client_corners(hwnd):
+        # 获取窗口的客户区矩形
+        client_rect = win32gui.GetClientRect(hwnd)
+        # 获取窗口的屏幕矩形
+        window_rect = win32gui.GetWindowRect(hwnd)
+
+        # 计算客户区的右上角位置
+        top_right_x = window_rect[0] + client_rect[2]
+        top_right_y = window_rect[1] + client_rect[1]
+
+        return top_right_x, top_right_y
 
     def insert_text(self, line):
         cursor = self.textEdit.textCursor()
@@ -1633,11 +1649,13 @@ def notice(notice_now: str):
 def change_log_level(new_level):
     """动态修改日志级别，
     :param new_level: 日志级别:logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL"""
+    global log, file_handler
     if new_level == logging.DEBUG:
         level = "『详细日志』"
     elif new_level == logging.INFO:
         level = "『信息日志』"
-    log.getLogger().setLevel(new_level)
+    file_handler.setLevel(new_level)
+    log.setLevel(new_level)  # 设置记录器的日志级别
     log.info(f'当前日志等级为：{level}')
 
 
@@ -1650,15 +1668,19 @@ def close_logger():
 
 def get_screen_size():
     """获取屏幕分辨率"""
-    hDC = win32gui.GetDC(0)
-    # 横向分辨率
-    real_screen_width = win32print.GetDeviceCaps(hDC, win32con.DESKTOPHORZRES)
-    # 纵向分辨率
-    real_screen_height = win32print.GetDeviceCaps(hDC, win32con.DESKTOPVERTRES)
-    screen_width = GetSystemMetrics(0)
-    # screen_height = GetSystemMetrics(1)
-    screen_scale_rate = round(real_screen_width / screen_width, 2)
-    return real_screen_width, real_screen_height, screen_scale_rate
+    user32 = ctypes.windll.user32
+    gdi32 = ctypes.windll.gdi32
+    dc = user32.GetDC(None)
+    width = gdi32.GetDeviceCaps(dc, 118)  # 原始分辨率的宽度
+    height = gdi32.GetDeviceCaps(dc, 117)  # 原始分辨率的高度
+    # 获取主屏幕的逻辑 DPI
+    try:
+        dpi = ctypes.windll.user32.GetDpiForSystem()
+    except AttributeError:
+        dpi = 96  # win10 1903以上版本才支持GetDpiForSystem
+    # 转换为 缩放 值
+    scale = dpi / 96.0
+    return width, height, scale
 
 
 def screen_age():
@@ -1672,7 +1694,7 @@ def coordinate_transformation(original_x: int, original_y: Optional[int] = None)
     :param original_x: 原始坐标x
     :param original_y: 原始坐标y"""
 
-    screen_size_width, screen_size_height, zoom_factor = get_screen_size()
+    screen_size_width, screen_size_height, _ = get_screen_size()
     # 计算转换后的坐标
     new_x = round(original_x * screen_size_width / 1920)
     if original_y is not None:
@@ -1804,17 +1826,77 @@ def listen_key():
         except Exception as ex:
             print(f"An error occurred: {ex}")
 
+    def convert_hotkey_format(hotkey):
+        """将热键格式转换为符合 keyboard 库的要求。"""
+        # 定义键的映射关系
+        key_mapping = {
+            # 可以添加更多的键映射
+            'alt': '<alt>',
+            'ctrl': '<ctrl>',
+            'shift': '<shift>',
+            'win': '<win>',
+            'space': '<space>',
+            'home': '<home>',
+            'end': '<end>',
+            'up': '<up>',
+            'down': '<down>',
+            'left': '<left>',
+            'right': '<right>',
+            'f1': '<f1>',
+            'f2': '<f2>',
+            'f3': '<f3>',
+            'f4': '<f4>',
+            'f5': '<f5>',
+            'f6': '<f6>',
+            'f7': '<f7>',
+            'f8': '<f8>',
+            'f9': '<f9>',
+            'f10': '<f10>',
+            'f11': '<f11>',
+            'f12': '<f12>',
+            'enter': '<enter>',
+            'tab': '<tab>',
+            'backspace': '<backspace>',
+            'delete': '<delete>',
+            'pageup': '<pageup>',
+            'pagedown': '<pagedown>',
+            'insert': '<insert>',
+            'pause': '<pause>',
+            'capslock': '<capslock>',
+            'numlock': '<numlock>',
+            'printscreen': '<printscreen>',
+            'esc': '<esc>',
+        }
+        
+        # 使用正则表达式匹配并替换键
+        pattern = r'\b(' + '|'.join(re.escape(key) for key in key_mapping.keys()) + r')\b'
+        converted_hotkey = re.sub(pattern, lambda x: key_mapping[x.group()], hotkey)
+        
+        return converted_hotkey
+
+    def convert_selected_hotkeys(args):
+        """仅转换指定的热键格式。"""
+        keys_to_convert = ['开始快捷键', '暂停快捷键', '停止快捷键']
+        for key in keys_to_convert:
+            if key in args and isinstance(args[key], list) and args[key]:
+                # 转换热键
+                args[key][0] = convert_hotkey_format(args[key][0])
+        return args
+
     try:
-        keyboard.add_hotkey(self_defined_args['开始快捷键'][0], begin)
-        keyboard.add_hotkey(self_defined_args['暂停快捷键'][0], pause)
-        keyboard.add_hotkey(self_defined_args['停止快捷键'][0], kill)
-        # 保持程序运行，监听键盘事件
-        keyboard.wait()
+        formatted_hotkey = convert_selected_hotkeys(self_defined_args)
+        # 注册热键
+        hotkeys = {
+        formatted_hotkey['开始快捷键'][0]: begin,
+        formatted_hotkey['暂停快捷键'][0]: pause,
+        formatted_hotkey['停止快捷键'][0]: kill
+    }
+
+        # 创建全局热键监听器
+        with keyboard.GlobalHotKeys(hotkeys) as listener:
+            listener.join()
     except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        # 清理，移除监听
-        keyboard.remove_all_hotkeys()
+        print(f"无效的热键: {e}")
 
 
 def ocr_range_inspection(identification_key: str,
@@ -2204,7 +2286,7 @@ def survivor_action() -> None:
         time.sleep(0.05)
         release_key(act_direction)
         time.sleep(0.7)
-    press_mosue()
+    press_mouse()
     time.sleep(2)
     release_mouse()
     release_key('lshift')
@@ -2251,23 +2333,25 @@ def killer_action() -> None:
         if eq(custom_select.select_killer_lst[killer_num], "枯萎者") or eq(
                 custom_select.select_killer_lst[killer_num], "BLIGHT"):
             release_key('w')
-            act_move = random_movement()
-            press_key(act_move)
-            act_direction = random_direction()
-            press_mosue('right')
-            release_mouse('right')
-            time.sleep(0.7)
-            press_key(act_direction)
-            time.sleep(0.3)
-            release_key(act_direction)
-            release_key(act_move)
+            for _ in range(5):
+                act_move = random_movement()
+                press_key(act_move)
+                act_direction = random_direction()
+                press_mouse('right')
+                time.sleep(0.05)
+                release_mouse('right')
+                time.sleep(0.7)
+                press_key(act_direction)
+                time.sleep(0.3)
+                release_key(act_direction)
+                release_key(act_move)
         elif eq(custom_select.select_killer_lst[killer_num], "怨灵") or eq(
                 custom_select.select_killer_lst[killer_num], "SPIRIT"):
             release_key('w')
             act_move = random_movement()
             press_key(act_move)
             act_direction = random_direction()
-            press_mosue('right')
+            press_mouse('right')
             time.sleep(3)
             press_key(act_direction)
             time.sleep(0.3)
@@ -2277,7 +2361,7 @@ def killer_action() -> None:
             release_mouse('right')
         elif custom_select.select_killer_lst[killer_num] in need_lst:
             act_direction = random_direction()
-            for i in range(5):
+            for _ in range(5):
                 press_key(act_direction)
                 time.sleep(0.05)
                 release_key(act_direction)
@@ -2287,7 +2371,7 @@ def killer_action() -> None:
                 killer_ctrl()
         else:
             act_direction = random_direction()
-            for i in range(5):
+            for _ in range(5):
                 press_key(act_direction)
                 time.sleep(0.05)
                 release_key(act_direction)
@@ -2326,11 +2410,11 @@ def killer_fixed_act() -> None:
         random_move(hwnd, move_time)
         veertime = round(random.uniform(0.285, 0.6), 3)
         random_veer(hwnd, veertime)
-        press_mosue('right')
+        press_mouse('right')
         time.sleep(4)
         release_mouse('right')
         time.sleep(0.3)
-    press_mosue()
+    press_mouse()
     time.sleep(2)
     release_mouse()
     release_key('w')
@@ -2390,7 +2474,7 @@ def start_check() -> bool:
         manager.sMessageBox(message, "warning")
         return False
     else:
-        real_screen_width, real_screen_height, screen_scale_rate = get_screen_size()
+        real_screen_width, real_screen_height, _ = get_screen_size()
         left, top, right, bottom = win32gui.GetClientRect(hwnd)
         # 计算窗口的宽度和高度
         width = right - left
