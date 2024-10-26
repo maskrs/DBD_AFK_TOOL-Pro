@@ -427,6 +427,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         super().__init__()
         self.setupUi(self)
         self.setWindowIcon(QIcon(":advanced/picture/advanced.png"))
+        self.content_changed  = False
         # 控件到设置键的反向映射
         self.reverse_mapping = {
             self.te_killer_message: '赛后发送消息',
@@ -497,6 +498,9 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         self.next_gif = GifButton(self.pb_next, ":mainwindow/picture/next.gif")
         self.previous_gif = GifButton(self.pb_previous, ":mainwindow/picture/previous.gif")
         self.reset_gif = GifButton(self.pb_reset, ":advanced/picture/reset.gif")
+
+        for widget in self.reverse_mapping.keys():
+            widget.textChanged.connect(self.on_content_change)
 
     def init_signals(self):
         """初始化信号和槽连接"""
@@ -621,6 +625,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
         self.retranslateUi(self)
         manager.sMessageBox("保存成功！", 'info')
+        self.content_changed = False
 
     def update_settings(self):
         """获取更改后的数值"""
@@ -643,17 +648,31 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                     pass
                 # 更新 self_defined_args 字典
                 self_defined_args[setting_key] = settings_value
-
                 # print(f'获取更改后的值：{self_defined_args}')
     
+    def on_content_change(self):
+        self.content_changed = True
+
     def pb_dcconfirm_offset_test_click(self):
         """测试断线确认偏移量"""
         self.update_settings()
-        offset_x, offset_y = self_defined_args['断线确认偏移量']
-        if offset_x >= 0 and offset_y >= 0 and offset_x < 50 and offset_y < 50:
+        try:
+            offset_x, offset_y = self_defined_args['断线确认偏移量']
+        except ValueError:
+            manager.sMessageBox("偏移量格式错误！", "error", 5000)
+            return
+        if offset_x >= -50 and offset_y >= -50 and offset_x < 50 and offset_y < 50:
             disconnect_confirm()
         else:
-            manager.sMessageBox("偏移量必须大于0且小于50！", "error", 5000)
+            manager.sMessageBox("偏移量范围为-50~50！", "error", 5000)
+    
+    def closeEvent(self, event):
+        if self.content_changed is True:
+            reply = QMessageBox.question(self, '提示', '是否保存更改？', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.pb_save_click()
+            else:
+                event.accept()
 
 
 
@@ -1826,15 +1845,15 @@ def ocr_range_inspection(identification_key: str,
 
             if any(keyword in ocr_result for keyword in keywords):
 
-                if dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 0:
+                if dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 1:  # 1 - open, 0 - close
                     # if min_sum_name != '断线检测二值化阈值':
-                    self_defined_args[min_sum_name][2] = 1
+                    self_defined_args[min_sum_name][2] = 0
                     # 将更新后的键值对写回文件
                     with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
                         json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
 
                 return True
-            elif ((dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 0) or
+            elif ((dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 1) or
                   stage_monitor.long_stay_switch is True):
 
                 new_threshold = threshold - 10  # 递减一个步长作为新的阈值
@@ -2693,42 +2712,42 @@ if __name__ == '__main__':
                          '装备配置2的坐标': [950, 60],
                          '装备配置3的坐标': [1000, 60],
                          '匹配阶段的识别范围': [1446, 771, 1920, 1080],
-                         '匹配大厅二值化阈值': [120, 130, 1],
+                         '匹配大厅二值化阈值': [120, 130, 0],
                          '匹配大厅识别关键字': ["开始游戏", "PLAY"],
                          '开始游戏按钮的坐标': [1742, 931],
                          '准备阶段的识别范围': [1446, 771, 1920, 1080],
-                         '准备房间二值化阈值': [120, 130, 1],
+                         '准备房间二值化阈值': [120, 130, 0],
                          '准备大厅识别关键字': ["准备就绪", "READY"],
                          '准备就绪按钮的坐标': [1742, 931],
                          '结算页的识别范围': [56, 46, 370, 172],
-                         '结算页二值化阈值': [70, 130, 1],
+                         '结算页二值化阈值': [70, 130, 0],
                          '结算页识别关键字': ["比赛", "得分", "你的", "MATCH", "SCORE"],
                          '结算页继续按钮坐标': [1761, 1009],
                          '结算页每日祭礼的识别范围': [106, 267, 430, 339],
-                         '结算页每日祭礼二值化阈值': [120, 130, 1],
+                         '结算页每日祭礼二值化阈值': [120, 130, 0],
                          '结算页每日祭礼识别关键字': ["每日", "DAILY RITUALS"],
                          '结算页祭礼完成坐标': [396, 718, 140, 880],
                          '段位重置的识别范围': [192, 194, 426, 291],
-                         '段位重置二值化阈值': [120, 130, 1],
+                         '段位重置二值化阈值': [120, 130, 0],
                          '段位重置识别关键字': ["重置", "RESET"],
                          '段位重置按钮的坐标': [1468, 843],
                          '断线检测的识别范围': [457, 530, 1488, 796],
-                         '断线检测二值化阈值': [110, 130, 1],
+                         '断线检测二值化阈值': [110, 130, 0],
                          '断线检测识别关键字': ["好的", "关闭", "CLOSE", "继续", "CONTINUE"],
                          '断线确认关键字': ["好", "关", "继", "K", "C"],
                          '断线确认偏移量': [0, 0],
                          '主界面的每日祭礼识别范围': [441, 255, 666, 343],
-                         '主页面每日祭礼二值化阈值': [120, 130, 1],
+                         '主页面每日祭礼二值化阈值': [120, 130, 0],
                          '主页面每日祭礼识别关键字': ["每日", "DAILY RITUALS"],
                          '主页面祭礼关闭坐标': [545, 880],
                          '主页面的识别范围': [203, 78, 365, 135],
-                         '主页面二值化阈值': [120, 130, 1],
+                         '主页面二值化阈值': [120, 130, 0],
                          '主页面识别关键字': ["开始", "PLAY"],
                          '主页面开始坐标': [320, 100],
                          '主页面逃生者坐标': [339, 320],
                          '主页面杀手坐标': [328, 224],
                          '新内容的识别范围': [548, 4, 1476, 256],
-                         '新内容二值化阈值': [120, 130, 1],
+                         '新内容二值化阈值': [120, 130, 0],
                          '新内容识别关键字': ["新内容", "NEW CONTENT"],
                          '新内容关闭坐标': [1413, 992],
                          '坐标转换开关': 0,
