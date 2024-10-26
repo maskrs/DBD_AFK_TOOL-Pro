@@ -54,9 +54,9 @@ from UI.SettingsUI import Ui_SettingDialog
 from UI.CrashReportUI import Ui_CrashReportDialog
 from UI.Notification import NotificationManager
 
-from Utils.GameOperate import (random_direction, random_movement, random_move, random_veer, killer_ctrl,
+from Utils.GameOperate import (press_key, release_key, press_mosue, release_mouse, random_direction, random_movement, random_move, random_veer, killer_ctrl,
                                killer_skill, killer_skillclick)
-from Utils.background_operation import key_down, key_up, screenshot
+from Utils.background_operation import screenshot
 from Utils.CustomAction import ActionExecutor
 from Utils.Client2ScreenOperate import MouseController
 
@@ -1398,6 +1398,10 @@ def begin():
         if start_check():
             manager.sMessageBox("脚本已启动！正在运行中···", 'info')
             screen_age()
+            if dbdWindowUi.cb_detailed_log.isChecked():
+                change_log_level(logging.DEBUG)
+            else:
+                change_log_level(logging.INFO)
             move_window(hwnd, 0, 0)
             begin_state = True
             try:
@@ -1718,9 +1722,9 @@ def autospace():
         if not pause_event.is_set():
             pause_event.wait()
         else:
-            key_down(hwnd, 'space')
+            press_key('space')
             time.sleep(5)
-            key_up(hwnd, 'space')
+            release_key('space')
 
 
 def move_window(hwnd, target_x, target_y):
@@ -1840,8 +1844,7 @@ def ocr_range_inspection(identification_key: str,
 
             # 调用img_ocr函数，传入坐标和二值化阈值
             ocr_result = ocr_func(x1, y1, x2, y2, sum=threshold)
-            if dbdWindowUi.cb_detailed_log.isChecked():
-                log.debug(f"{name}.OCR 识别内容为：{ocr_result}")
+            log.debug(f"{name}.OCR 识别内容为：{ocr_result}")
 
             if any(keyword in ocr_result for keyword in keywords):
 
@@ -1860,8 +1863,7 @@ def ocr_range_inspection(identification_key: str,
                 if new_threshold < 30:  # 确保不低于停止值
                     new_threshold = threshold_high
                 self_defined_args[min_sum_name][0] = new_threshold
-                if dbdWindowUi.cb_detailed_log.isChecked():
-                    log.debug(f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
+                log.debug(f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
 
             return False
 
@@ -2080,8 +2082,7 @@ def disconnect_confirm(sum=120) -> None:
         # 确保临时文件被删除，防止内存泄露和磁盘空间占用
         os.unlink(temp_path)
 
-    if dbdWindowUi.cb_detailed_log.isChecked():
-        log.debug(f"断线确认识别内容为：{result}\n")
+    log.debug(f"断线确认识别内容为：{result}\n")
 
     # 定义需要查找的字符串列表
     target_strings = self_defined_args["断线确认关键字"]
@@ -2191,19 +2192,19 @@ def survivor_action() -> None:
         custom_command.execute_action_sequence("逃生者")
         return
 
-    key_down(hwnd, 'w')
-    key_down(hwnd, 'lshift')
+    press_key('w')
+    press_key('lshift')
     act_direction = random_direction()
     for i in range(10):
-        key_down(hwnd, act_direction)
+        press_key(act_direction)
         time.sleep(0.05)
-        key_up(hwnd, act_direction)
+        release_key(act_direction)
         time.sleep(0.7)
-    py.mouseDown(button='left')
+    press_mosue()
     time.sleep(2)
-    py.mouseUp(button='left')
-    key_up(hwnd, 'lshift')
-    key_up(hwnd, 'w')
+    release_mouse()
+    release_key('lshift')
+    release_key('w')
 
 
 def killer_action() -> None:
@@ -2242,55 +2243,55 @@ def killer_action() -> None:
         print(f"下标越界···{killer_num}")
 
     try:
-        key_down(hwnd, 'w')
+        press_key('w')
         if eq(custom_select.select_killer_lst[killer_num], "枯萎者") or eq(
                 custom_select.select_killer_lst[killer_num], "BLIGHT"):
-            key_up(hwnd, 'w')
+            release_key('w')
             act_move = random_movement()
-            key_down(hwnd, act_move)
+            press_key(act_move)
             act_direction = random_direction()
-            py.mouseDown(button='right')
-            py.mouseUp(button='right')
+            press_mosue('right')
+            release_mouse('right')
             time.sleep(0.7)
-            key_down(hwnd, act_direction)
+            press_key(act_direction)
             time.sleep(0.3)
-            key_up(hwnd, act_direction)
-            key_up(hwnd, act_move)
+            release_key(act_direction)
+            release_key(act_move)
         elif eq(custom_select.select_killer_lst[killer_num], "怨灵") or eq(
                 custom_select.select_killer_lst[killer_num], "SPIRIT"):
-            key_up(hwnd, 'w')
+            release_key('w')
             act_move = random_movement()
-            key_down(hwnd, act_move)
+            press_key(act_move)
             act_direction = random_direction()
-            py.mouseDown(button='right')
+            press_mosue('right')
             time.sleep(3)
-            key_down(hwnd, act_direction)
+            press_key(act_direction)
             time.sleep(0.3)
-            key_up(hwnd, act_direction)
+            release_key(act_direction)
             time.sleep(5)
-            key_up(hwnd, act_move)
-            py.mouseUp(button='right')
+            release_key(act_move)
+            release_mouse('right')
         elif custom_select.select_killer_lst[killer_num] in need_lst:
             act_direction = random_direction()
             for i in range(5):
-                key_down(hwnd, act_direction)
+                press_key(act_direction)
                 time.sleep(0.05)
-                key_up(hwnd, act_direction)
+                release_key(act_direction)
                 time.sleep(0.7)
-            killer_skillclick(hwnd)
+            killer_skillclick()
             if custom_select.select_killer_lst[killer_num] in ctrl_lst:
-                killer_ctrl(hwnd)
+                killer_ctrl()
         else:
             act_direction = random_direction()
             for i in range(5):
-                key_down(hwnd, act_direction)
+                press_key(act_direction)
                 time.sleep(0.05)
-                key_up(hwnd, act_direction)
+                release_key(act_direction)
                 time.sleep(0.7)
-            killer_skill(hwnd)
+            killer_skill()
             if custom_select.select_killer_lst[killer_num] in ctrl_lst:
-                killer_ctrl(hwnd)
-        key_up(hwnd, 'w')
+                killer_ctrl()
+        release_key('w')
 
     except IndexError:
         print(f"下标越界···{killer_num}")
@@ -2314,21 +2315,21 @@ def killer_fixed_act() -> None:
     except IndexError:
         print(f"下标越界···{killer_num}")
 
-    key_down(hwnd, 'w')
+    press_key('w')
     killer_ctrl(hwnd)
     for i in range(4):
         move_time = round(random.uniform(1.5, 5.0), 3)
         random_move(hwnd, move_time)
         veertime = round(random.uniform(0.285, 0.6), 3)
         random_veer(hwnd, veertime)
-        py.mouseDown(button='right')
+        press_mosue('right')
         time.sleep(4)
-        py.mouseUp(button='right')
+        release_mouse('right')
         time.sleep(0.3)
-    py.mouseDown()
+    press_mosue()
     time.sleep(2)
-    py.mouseUp()
-    key_up(hwnd, 'w')
+    release_mouse()
+    release_key('w')
 
 
 def character_selection() -> None:
@@ -2883,7 +2884,7 @@ if __name__ == '__main__':
     hotkey = threading.Thread(target=listen_key, daemon=True)
     tip = threading.Thread(target=hall_tip, daemon=True)
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
-    notice('test git')  # 通知消息
+    notice('test gix')  # 通知消息
     authorization('~x&amp;mBGbIneqSS(')  # 授权验证
     hotkey.start()  # 热键监听
     check_ocr()  # 检查初始化

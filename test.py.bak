@@ -1395,10 +1395,6 @@ def begin():
     if not begin_state:
         open(LOG_PATH, 'w').close()
         save_cfg()
-        if dbdWindowUi.cb_detailed_log.isChecked():
-            change_log_level(logging.DEBUG)
-        else:
-            change_log_level(logging.INFO)
         if start_check():
             manager.sMessageBox("脚本已启动！正在运行中···", 'info')
             screen_age()
@@ -1722,9 +1718,9 @@ def autospace():
         if not pause_event.is_set():
             pause_event.wait()
         else:
-            press_key('space')
+            key_down(hwnd, 'space')
             time.sleep(5)
-            release_key('space')
+            key_up(hwnd, 'space')
 
 
 def move_window(hwnd, target_x, target_y):
@@ -1844,7 +1840,8 @@ def ocr_range_inspection(identification_key: str,
 
             # 调用img_ocr函数，传入坐标和二值化阈值
             ocr_result = ocr_func(x1, y1, x2, y2, sum=threshold)
-            log.debug(f"{name}.OCR 识别内容为：{ocr_result}")
+            if dbdWindowUi.cb_detailed_log.isChecked():
+                log.debug(f"{name}.OCR 识别内容为：{ocr_result}")
 
             if any(keyword in ocr_result for keyword in keywords):
 
@@ -1863,7 +1860,8 @@ def ocr_range_inspection(identification_key: str,
                 if new_threshold < 30:  # 确保不低于停止值
                     new_threshold = threshold_high
                 self_defined_args[min_sum_name][0] = new_threshold
-                log.debug(f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
+                if dbdWindowUi.cb_detailed_log.isChecked():
+                    log.debug(f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
 
             return False
 
@@ -2082,7 +2080,8 @@ def disconnect_confirm(sum=120) -> None:
         # 确保临时文件被删除，防止内存泄露和磁盘空间占用
         os.unlink(temp_path)
 
-    log.debug(f"断线确认识别内容为：{result}\n")
+    if dbdWindowUi.cb_detailed_log.isChecked():
+        log.debug(f"断线确认识别内容为：{result}\n")
 
     # 定义需要查找的字符串列表
     target_strings = self_defined_args["断线确认关键字"]
@@ -2192,19 +2191,19 @@ def survivor_action() -> None:
         custom_command.execute_action_sequence("逃生者")
         return
 
-    press_key('w')
-    press_key('lshift')
+    key_down(hwnd, 'w')
+    key_down(hwnd, 'lshift')
     act_direction = random_direction()
     for i in range(10):
-        press_key(act_direction)
+        key_down(hwnd, act_direction)
         time.sleep(0.05)
-        release_key(act_direction)
+        key_up(hwnd, act_direction)
         time.sleep(0.7)
-    press_mosue()
+    py.mouseDown(button='left')
     time.sleep(2)
-    release_mouse()
-    release_key('lshift')
-    release_key('w')
+    py.mouseUp(button='left')
+    key_up(hwnd, 'lshift')
+    key_up(hwnd, 'w')
 
 
 def killer_action() -> None:
@@ -2243,55 +2242,55 @@ def killer_action() -> None:
         print(f"下标越界···{killer_num}")
 
     try:
-        press_key('w')
+        key_down(hwnd, 'w')
         if eq(custom_select.select_killer_lst[killer_num], "枯萎者") or eq(
                 custom_select.select_killer_lst[killer_num], "BLIGHT"):
-            release_key('w')
+            key_up(hwnd, 'w')
             act_move = random_movement()
-            press_key(act_move)
+            key_down(hwnd, act_move)
             act_direction = random_direction()
-            press_mosue('right')
-            release_mouse('right')
+            py.mouseDown(button='right')
+            py.mouseUp(button='right')
             time.sleep(0.7)
-            press_key(act_direction)
+            key_down(hwnd, act_direction)
             time.sleep(0.3)
-            release_key(act_direction)
-            release_key(act_move)
+            key_up(hwnd, act_direction)
+            key_up(hwnd, act_move)
         elif eq(custom_select.select_killer_lst[killer_num], "怨灵") or eq(
                 custom_select.select_killer_lst[killer_num], "SPIRIT"):
-            release_key('w')
+            key_up(hwnd, 'w')
             act_move = random_movement()
-            press_key(act_move)
+            key_down(hwnd, act_move)
             act_direction = random_direction()
-            press_mosue('right')
+            py.mouseDown(button='right')
             time.sleep(3)
-            press_key(act_direction)
+            key_down(hwnd, act_direction)
             time.sleep(0.3)
-            release_key(act_direction)
+            key_up(hwnd, act_direction)
             time.sleep(5)
-            release_key(act_move)
-            release_mouse('right')
+            key_up(hwnd, act_move)
+            py.mouseUp(button='right')
         elif custom_select.select_killer_lst[killer_num] in need_lst:
             act_direction = random_direction()
             for i in range(5):
-                press_key(act_direction)
+                key_down(hwnd, act_direction)
                 time.sleep(0.05)
-                release_key(act_direction)
+                key_up(hwnd, act_direction)
                 time.sleep(0.7)
-            killer_skillclick()
+            killer_skillclick(hwnd)
             if custom_select.select_killer_lst[killer_num] in ctrl_lst:
-                killer_ctrl()
+                killer_ctrl(hwnd)
         else:
             act_direction = random_direction()
             for i in range(5):
-                press_key(act_direction)
+                key_down(hwnd, act_direction)
                 time.sleep(0.05)
-                release_key(act_direction)
+                key_up(hwnd, act_direction)
                 time.sleep(0.7)
-            killer_skill()
+            killer_skill(hwnd)
             if custom_select.select_killer_lst[killer_num] in ctrl_lst:
-                killer_ctrl()
-        release_key('w')
+                killer_ctrl(hwnd)
+        key_up(hwnd, 'w')
 
     except IndexError:
         print(f"下标越界···{killer_num}")
@@ -2315,21 +2314,21 @@ def killer_fixed_act() -> None:
     except IndexError:
         print(f"下标越界···{killer_num}")
 
-    press_key('w')
+    key_down(hwnd, 'w')
     killer_ctrl(hwnd)
     for i in range(4):
         move_time = round(random.uniform(1.5, 5.0), 3)
         random_move(hwnd, move_time)
         veertime = round(random.uniform(0.285, 0.6), 3)
         random_veer(hwnd, veertime)
-        press_mosue('right')
+        py.mouseDown(button='right')
         time.sleep(4)
-        release_mouse('right')
+        py.mouseUp(button='right')
         time.sleep(0.3)
-    press_mosue()
+    py.mouseDown()
     time.sleep(2)
-    release_mouse()
-    release_key('w')
+    py.mouseUp()
+    key_up(hwnd, 'w')
 
 
 def character_selection() -> None:
@@ -2884,7 +2883,7 @@ if __name__ == '__main__':
     hotkey = threading.Thread(target=listen_key, daemon=True)
     tip = threading.Thread(target=hall_tip, daemon=True)
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
-    notice('test gix')  # 通知消息
+    notice('test git')  # 通知消息
     authorization('~x&amp;mBGbIneqSS(')  # 授权验证
     hotkey.start()  # 热键监听
     check_ocr()  # 检查初始化
