@@ -47,7 +47,7 @@
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="elideMode">
       <enum>Qt::ElideRight</enum>
@@ -380,7 +380,7 @@
           <enum>QFrame::Plain</enum>
          </property>
          <property name="currentIndex">
-          <number>0</number>
+          <number>5</number>
          </property>
          <widget class="QWidget" name="page">
           <property name="sizePolicy">
@@ -1163,6 +1163,12 @@
            </item>
            <item row="5" column="1">
             <widget class="QLabel" name="lb_dcconfir_offset">
+             <property name="cursor">
+              <cursorShape>WhatsThisCursor</cursorShape>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;推荐的偏移量区间为【-10, 10】&lt;/p&gt;&lt;p&gt;最大区间为【-50, 50】&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
              <property name="text">
               <string>断线确认偏移量</string>
              </property>

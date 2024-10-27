@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'd:\Project\DBD_AFK_TOOL\UI\AdvancedParameterUI.ui'
+# Form implementation generated from reading ui file 'd:\code project\DBD_AFK_TOOL\UI\AdvancedParameterUI.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -480,6 +480,7 @@ class Ui_AdvancedWindow(object):
         spacerItem28 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.gridLayout_6.addItem(spacerItem28, 0, 4, 1, 1)
         self.lb_dcconfir_offset = QtWidgets.QLabel(self.page_5)
+        self.lb_dcconfir_offset.setCursor(QtGui.QCursor(QtCore.Qt.WhatsThisCursor))
         self.lb_dcconfir_offset.setObjectName("lb_dcconfir_offset")
         self.gridLayout_6.addWidget(self.lb_dcconfir_offset, 5, 1, 1, 1)
         spacerItem29 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -647,8 +648,8 @@ class Ui_AdvancedWindow(object):
         self.verticalLayout_2.addWidget(self.widget_2)
 
         self.retranslateUi(AdvancedWindow)
-        self.tabWidget.setCurrentIndex(0)
-        self.stackedWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
+        self.stackedWidget.setCurrentIndex(5)
         QtCore.QMetaObject.connectSlotsByName(AdvancedWindow)
 
     def retranslateUi(self, AdvancedWindow):
@@ -708,6 +709,7 @@ class Ui_AdvancedWindow(object):
         self.lb_evrewards.setText(_translate("AdvancedWindow", "事件奖励"))
         self.lb_newsxy.setText(_translate("AdvancedWindow", "新内容关闭坐标"))
         self.lb_discheck_binaryzation.setText(_translate("AdvancedWindow", "断线检测二值化阈值"))
+        self.lb_dcconfir_offset.setToolTip(_translate("AdvancedWindow", "<html><head/><body><p>推荐的偏移量区间为【-10, 10】</p><p>最大区间为【-50, 50】</p></body></html>"))
         self.lb_dcconfir_offset.setText(_translate("AdvancedWindow", "断线确认偏移量"))
         self.lb_seasonreset_binaryzation.setText(_translate("AdvancedWindow", "段位重置二值化阈值"))
         self.lb_dccheck_keywords.setText(_translate("AdvancedWindow", "断线检测识别关键字"))
