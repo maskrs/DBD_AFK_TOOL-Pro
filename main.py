@@ -2405,8 +2405,8 @@ def killer_fixed_act() -> None:
         print(f"下标越界···{killer_num}")
 
     press_key('w')
-    killer_ctrl(hwnd)
-    for i in range(4):
+    killer_ctrl()
+    for _ in range(4):
         move_time = round(random.uniform(1.5, 5.0), 3)
         random_move(hwnd, move_time)
         veertime = round(random.uniform(0.285, 0.6), 3)

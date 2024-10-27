@@ -59,7 +59,7 @@ VkCode = {
     "lshift": pynput.keyboard.Key.shift_l,  # 0xA0
     "rshift": pynput.keyboard.Key.shift_r,  # 0xA1
     "lcontrol": pynput.keyboard.Key.ctrl_l,  # 0xA2
-    "rcontrol": pynput.keyboard.Key.cmd_r,  # 0xA3
+    "rcontrol": pynput.keyboard.Key.ctrl_r,  # 0xA3
     "lalt": pynput.keyboard.Key.alt_l,  # 0xA4
     "ralt": pynput.keyboard.Key.alt_r,  # 0xA5
 }
