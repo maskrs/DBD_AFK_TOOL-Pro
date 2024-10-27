@@ -1422,7 +1422,6 @@ def begin():
         if start_check():
             manager.sMessageBox("脚本已启动！正在运行中···", 'info')
             screen_age()
-            move_window(hwnd, 0, 0)
             begin_state = True
             try:
                 # 播放WAV文件
@@ -1763,9 +1762,11 @@ def move_window(hwnd, target_x, target_y):
     try:
         # 移动窗口到新的位置
         win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, target_x, target_y, 0, 0, win32con.SWP_NOSIZE)
+        return True
     except Exception as e:
         log.warning(f"移动窗口到新的位置失败：{e}")
         manager.sMessageBox(f"尝试以管理员权限运行脚本。", 'error')
+        return False
 
 
 def change_skill_allocation():
@@ -2510,6 +2511,9 @@ def start_check() -> bool:
         message = "外部文件至少写入一个屠夫！" if lang == "chinese" else "External files are written to at least one killer!"
         manager.sMessageBox(message, "warning")
         return False
+    
+    if not move_window(hwnd, 0, 0):
+        return False
 
     MControl.moveclick(10, 10)
     log.info(f"启动脚本····\n")
@@ -2978,6 +2982,6 @@ if __name__ == '__main__':
     hotkey.start()  # 热键监听
     check_ocr()  # 检查初始化
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
-        check_update('V5.2.6')
+        check_update('V5.2.7')
     dbdWindowUi.show()
     sys.exit(app.exec_())

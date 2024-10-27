@@ -648,8 +648,8 @@ class Ui_AdvancedWindow(object):
         self.verticalLayout_2.addWidget(self.widget_2)
 
         self.retranslateUi(AdvancedWindow)
-        self.tabWidget.setCurrentIndex(1)
-        self.stackedWidget.setCurrentIndex(5)
+        self.tabWidget.setCurrentIndex(0)
+        self.stackedWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(AdvancedWindow)
 
     def retranslateUi(self, AdvancedWindow):
