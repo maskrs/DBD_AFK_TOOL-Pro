@@ -2,6 +2,9 @@
   <qresource prefix="start">
     <file>picture/circled-play.gif</file>
   </qresource>
+  <qresource prefix="splashpage">
+    <file>picture/splashpage.png</file>
+  </qresource>
   <qresource prefix="stop">
     <file>picture/shutdown.gif</file>
   </qresource>
