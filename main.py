@@ -2414,9 +2414,9 @@ def killer_fixed_act() -> None:
     killer_ctrl()
     for _ in range(4):
         move_time = round(random.uniform(1.5, 5.0), 3)
-        random_move(hwnd, move_time)
+        random_move(move_time)
         veertime = round(random.uniform(0.285, 0.6), 3)
-        random_veer(hwnd, veertime)
+        random_veer(veertime)
         press_mouse('right')
         time.sleep(4)
         release_mouse('right')
