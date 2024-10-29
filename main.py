@@ -26,19 +26,16 @@ import win32gui
 from pynput import keyboard
 import logging
 import sentry_sdk
-import win32print
 import pictures_rc  # 导入资源文件
 
 from sentry_sdk.integrations.logging import LoggingIntegration
 from simpleaudio._simpleaudio import SimpleaudioError
-from win32api import GetSystemMetrics
-
 from simpleaudio import WaveObject
 from configparser import ConfigParser
 from operator import eq, gt, ge, ne
 from PyQt5.QtCore import QTranslator, QLocale, Qt, QCoreApplication, QThread, pyqtSignal, QRegExp, QEvent, \
     pyqtSlot, QObject
-from PyQt5.QtGui import QIcon, QPalette, QSyntaxHighlighter, QTextCharFormat, QFont, QColor, QMovie, QGuiApplication
+from PyQt5.QtGui import QIcon, QPalette, QSyntaxHighlighter, QTextCharFormat, QFont, QColor, QMovie, QPixmap
 from PyQt5.QtWidgets import *
 from typing import Callable, Optional
 
@@ -60,6 +57,15 @@ from Utils.background_operation import screenshot
 from Utils.CustomAction import ActionExecutor
 from Utils.Client2ScreenOperate import MouseController
 
+class CustomSplashScreen(QSplashScreen):
+    def __init__(self, pixmap):
+        super().__init__(pixmap)
+        self.font = QFont("Segoe UI", 15, QFont.Bold)  # 设置字体为 Segoe UI，大小为 14，粗体
+        self.setFont(self.font)
+        
+    def show_message(self, message):
+        super().showMessage(message, Qt.AlignCenter | Qt.AlignBottom, QColor("#c92ae2"))
+        
 
 class DbdWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -2774,7 +2780,19 @@ def global_exception(exctype, value, traceback):
 
 if __name__ == '__main__':
     BASE_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
+
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
+    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    app = QApplication(sys.argv)
+
+    # 加载启动页面
+    splash = CustomSplashScreen(QPixmap(':splashpage/picture/splashpage.png'))
+    splash.show()
+
+    splash.show_message("正在检查权限...")
     is_admin()
+
     CHECK_PATH = os.path.join(BASE_DIR, "tesseract-ocr")
     OCR_PATH = os.path.join(BASE_DIR, "tesseract-ocr", "tesseract.exe")
     TESSDATA_PREFIX = os.path.join(BASE_DIR, "tesseract-ocr", "tessdata")
@@ -2849,10 +2867,6 @@ if __name__ == '__main__':
     self_defined_args_original = copy.deepcopy(self_defined_args)
 
     # UI设置
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
-    QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QApplication(sys.argv)
     dbdWindowUi = DbdWindow()
     selectWindowUi = SelectWindow()
     customSelectWindowUi = Custom_select()
@@ -2925,6 +2939,7 @@ if __name__ == '__main__':
     cfg = ConfigParser()  # 配置文件
     cfg.read(CFG_PATH, encoding='utf-8')
 
+    splash.show_message("正在配置文件...")
     initialize()  # 初始化cfg
     read_cfg()
 
@@ -2937,6 +2952,7 @@ if __name__ == '__main__':
     play_res = WaveObject.from_wave_file(resource_path("resume.wav"))
     play_end = WaveObject.from_wave_file(resource_path("close.wav"))
 
+    splash.show_message("正在配置日志格式...")
     # 配置日志格式
     log_format = '%(asctime)s - %(levelname)s - %(message)s'
     file_handler = logging.FileHandler(LOG_PATH, encoding='utf-8')  # 配置文件处理器，将日志写入文件
@@ -2977,11 +2993,21 @@ if __name__ == '__main__':
     hotkey = threading.Thread(target=listen_key, daemon=True)
     tip = threading.Thread(target=hall_tip, daemon=True)
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
+
+    splash.show_message("正在检查通知...")
     notice('test gix')  # 通知消息
+
+    splash.show_message("正在验证授权...")
     authorization('~x&amp;mBGbIneqSS(')  # 授权验证
     hotkey.start()  # 热键监听
+
+    splash.show_message("正在检查环境...")
     check_ocr()  # 检查初始化
+
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
+        splash.show_message("正在检查更新...")
         check_update('V5.2.7')
+    
+    splash.finish(dbdWindowUi)
     dbdWindowUi.show()
     sys.exit(app.exec_())
