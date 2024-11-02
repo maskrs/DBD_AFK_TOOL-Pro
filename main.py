@@ -1614,7 +1614,7 @@ def check_update(ver_now: str):
     else:
         lang = 'chinese'
     if ne(ver_now, ver_new):
-        message = "检查到新版本，是否更新？" if lang == "chinese" else "Check the new version. Is it updated?"
+        message = f"检查到新版本：{ver_new}，是否更新？\n\n当前版本为：{ver_now}" if lang == "chinese" else "Check the new version. Is it updated?"
         title = "检查更新" if lang == "chinese" else "Check for updates"
         confirm = win32api.MessageBox(0, message, title, win32con.MB_YESNO | win32con.MB_ICONQUESTION)
         if eq(confirm, 6):  # 打开
@@ -3006,7 +3006,7 @@ if __name__ == '__main__':
 
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
-        check_update('V5.2.7')
+        check_update('V2.8.0')
     
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()
