@@ -2189,6 +2189,7 @@ def disconnect_confirm(sum=120) -> None:
             # print(f"关键字：{target_string},坐标：({confirmx}, {confirmy})")
             MControl.moveclick(disconnect_check_colorXY[0] + confirmx + self_defined_args["断线确认偏移量"][0], disconnect_check_colorXY[3] - confirmy + self_defined_args["断线确认偏移量"][1],
                                1, 1)
+            py.press('enter')
             # 找到了坐标，跳出循环
             break
 
@@ -2486,10 +2487,10 @@ def start_check() -> bool:
         # 计算窗口的宽度和高度
         width = right - left
         height = bottom - top
-        if real_screen_width >= 1920 and real_screen_height >= 1080 and width != 1920 and height != 1080:
-            message = f"请将游戏窗口调整为<1920×1080> 分辨率，当前分辨率为<{width}×{height}>" if lang == "chinese" else \
-                f"Please adjust the game window to <1920×1080> resolution, current resolution is <{width}×{height}>"
-            manager.sMessageBox(message, "warning", 5000)
+        if real_screen_width >= 1920 and real_screen_height >= 1080 and width != 1920 and height != 1080 and self_defined_args['匹配阶段的识别范围'][2] == 1920 and self_defined_args['匹配阶段的识别范围'][3] == 1080:
+            message = f"当前正使用默认配置，请将游戏窗口调整为<1920×1080> 分辨率，当前分辨率为<{width}×{height}>" if lang == "chinese" else \
+                f"Currently using the default configuration, please adjust the game window to <1920×1080> resolution, the current resolution is <{width}×{height}>"
+            manager.sMessageBox(message, "warning", 7000)
             return False
 
     # 判断阵营选择
@@ -3006,7 +3007,7 @@ if __name__ == '__main__':
 
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
-        check_update('V2.8.0')
+        check_update('V2.8.1')
     
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()
