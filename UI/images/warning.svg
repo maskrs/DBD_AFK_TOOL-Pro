@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景三角形，使用圆润的角 -->
+    <path d="M32 8L60 52C60.6667 53.1667 60 54 58.5 54H5.5C4 54 3.33333 53.1667 4 52L32 8Z" fill="url(#paint0_linear)" stroke="#f1c40f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- 感叹号的点，使用椭圆形状 -->
+    <circle cx="32" cy="46" r="3" fill="#f1c40f"/>
+    
+    <!-- 感叹号的竖线，使用流畅的曲线 -->
+    <path d="M32 22C33.1046 22 34 22.8954 34 24V36C34 37.1046 33.1046 38 32 38C30.8954 38 30 37.1046 30 36V24C30 22.8954 30.8954 22 32 22Z" fill="#f1c40f"/>
+    
+    <!-- 添加装饰性光效 -->
+    <path d="M32 22L34 24V36" stroke="#f1c40f" stroke-width="0.5" stroke-linecap="round" opacity="0.6"/>
+    
+    <!-- 定义渐变 -->
+    <defs>
+        <linearGradient id="paint0_linear" x1="32" y1="8" x2="32" y2="54" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#FFF9E6"/>
+            <stop offset="1" stop-color="#FFFDF5"/>
+        </linearGradient>
+    </defs>
+</svg> 

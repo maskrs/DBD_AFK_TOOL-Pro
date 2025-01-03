@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- 背景圆圈，使用优美的渐变 -->
+    <circle cx="32" cy="32" r="28" fill="url(#paint0_linear)" stroke="#3498db" stroke-width="2.5" stroke-linecap="round"/>
+    
+    <!-- 信息符号的点，使用圆润的形状 -->
+    <circle cx="32" cy="20" r="3.5" fill="#3498db"/>
+    
+    <!-- 信息符号的竖线，使用优雅的曲线 -->
+    <path d="M32 28C33.1046 28 34 28.8954 34 30V44C34 45.1046 33.1046 46 32 46C30.8954 46 30 45.1046 30 44V30C30 28.8954 30.8954 28 32 28Z" fill="#3498db"/>
+    
+    <!-- 添加微妙的装饰元素 -->
+    <path d="M32 28C33.1046 28 34 28.8954 34 30V44" stroke="#3498db" stroke-width="0.5" stroke-linecap="round" opacity="0.6"/>
+    
+    <!-- 定义渐变 -->
+    <defs>
+        <linearGradient id="paint0_linear" x1="32" y1="4" x2="32" y2="60" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#E1F0FA"/>
+            <stop offset="1" stop-color="#F8FCFF"/>
+        </linearGradient>
+    </defs>
+</svg> 

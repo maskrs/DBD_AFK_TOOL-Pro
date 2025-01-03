@@ -8,6 +8,11 @@
 /test
 /.venv
 /.vscode
+/UI/components/__pycache__
+/UI/components/pages/__pycache__
+/UI/components/utils/__pycache__
+/UI/components/windows/__pycache__
+/PyQt-SiliconUI
 
 # ignore irrelevant files
 /*.cfg
