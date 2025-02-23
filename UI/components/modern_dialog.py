@@ -1,8 +1,11 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QGraphicsDropShadowEffect, QPushButton, QHBoxLayout, QApplication, QDialog, QSizePolicy, QGraphicsOpacityEffect
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QGraphicsDropShadowEffect, QHBoxLayout, QApplication, QDialog, QSizePolicy, QGraphicsOpacityEffect
 from PySide6.QtCore import Qt,  QEvent, QPropertyAnimation, QEasingCurve, QParallelAnimationGroup
 from PySide6.QtGui import QPainter, QColor, QPixmap
 from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtCore import QFile
 import os
+
+from .modern_button import ModernButton
 
 class ModernDialog(QDialog):
     """现代化模态对话框组件"""
@@ -276,11 +279,13 @@ class ModernDialog(QDialog):
             QLabel {{
                 color: {text_color};
                 font-size: 14px;
+                font-family: "Segoe UI";
             }}
             QLabel#title_label {{
                 color: {text_color};
                 font-size: 16px;
                 font-weight: bold;
+                font-family: "Segoe UI";
             }}
             QPushButton {{
                 background-color: {button_bg};
@@ -290,6 +295,7 @@ class ModernDialog(QDialog):
                 padding: 0 16px;
                 height: 32px;
                 font-size: 14px;
+                font-family: "Segoe UI";
             }}
             QPushButton:hover {{
                 background-color: {button_hover};
@@ -327,8 +333,13 @@ class ModernDialog(QDialog):
         self.button_widget.adjustSize()
         self.button_container.adjustSize()
         
-        # 获取内容和按钮的实际高度
-        content_height = max(self.content_container.sizeHint().height(), 200)  # 确保内容区域最小高度
+        # 获取内容区域的实际高度
+        content_height = self.text_container.sizeHint().height()
+        
+        # 确保内容区域最小高度
+        content_height = max(content_height + 2 * self.content_padding_v, 200)
+        
+        # 获取按钮区域的实际高度
         button_height = self.button_container.sizeHint().height()
         
         # 设置内容和按钮区域的大小
@@ -383,8 +394,16 @@ class ModernDialog(QDialog):
         self.exec()
         
     @classmethod
-    def show_dialog(cls, parent, title, message, buttons=[OK], icon_name=None):
-        """显示对话框"""
+    def show_dialog(cls, parent, title, message, buttons=[OK], icon_name=None, button_texts=None):
+        """显示对话框
+        Args:
+            parent: 父窗口
+            title: 对话框标题
+            message: 对话框消息内容
+            buttons: 按钮类型列表
+            icon_name: 图标名称
+            button_texts: 按钮文本字典，格式为 {按钮类型: 按钮文本}，例如 {OK: "确认", CANCEL: "关闭"}
+        """
         dialog = cls(title, parent)
         
         # 设置内容
@@ -396,8 +415,22 @@ class ModernDialog(QDialog):
                 font-size: 14px;
                 min-height: 20px;
                 padding: 0px;
+                font-family: "Segoe UI";
             }
         """)
+        
+        # 计算文本所需的宽度和高度
+        available_width = dialog._dialog_width - 2 * dialog.body_padding_h - 64 - 20  # 减去左右padding、图标宽度和间距
+        text_rect = content.fontMetrics().boundingRect(
+            0, 0, available_width, 1000,  # 最大宽度为可用宽度，高度1000作为充分大的值
+            Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignVCenter,
+            message
+        )
+        
+        # 设置内容标签的固定宽度，让它自动调整高度
+        content.setFixedWidth(available_width)
+        
+        # 添加到布局
         dialog.text_layout.addWidget(content)
         
         # 设置图标
@@ -426,9 +459,11 @@ class ModernDialog(QDialog):
         # 添加按钮
         for button_type in buttons:
             if button_type in button_map:
-                text, is_primary = button_map[button_type]
-                button = QPushButton(text)
-                button.setProperty("primary", is_primary)
+                default_text, is_primary = button_map[button_type]
+                # 使用自定义文本（如果提供），否则使用默认文本
+                text = button_texts.get(button_type, default_text) if button_texts else default_text
+                button = ModernButton(dialog, highlight=is_primary)
+                button.setText(text)
                 button.setFixedWidth(button_width)  # 设置固定宽度
                 button.clicked.connect(lambda checked, b=button_type: dialog._handle_button_click(b))
                 dialog.button_layout.addWidget(button)
@@ -446,47 +481,49 @@ class ModernDialog(QDialog):
         Args:
             icon_name: Fluent图标名称，例如 'ic_fluent_info_regular'
         """
-        # 获取当前文件所在目录
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        # 构建图标路径
-        icon_path = os.path.join(current_dir, '..', 'icons', 'fluent', f'{icon_name}.svg')
+        try:
+            # 构建资源路径
+            icon_path = f":/resources/{icon_name}.svg"
+            
+            # 从Qt资源系统读取SVG
+            file = QFile(icon_path)
+            if file.open(QFile.ReadOnly | QFile.Text):
+                svg_content = str(file.readAll().data(), encoding='utf-8')
+                file.close()
+                
+                # 替换颜色
+                color = "#ffffff" if self._is_dark_mode else "#292C30"
+                svg_content = svg_content.replace('currentColor', color)
+                
+                # 创建SVG渲染器
+                renderer = QSvgRenderer()
+                renderer.load(svg_content.encode('utf-8'))
+                
+                # 创建Pixmap
+                size = 24  # 基础大小
+                if self.window():
+                    # 考虑DPI缩放
+                    device_pixel_ratio = self.window().devicePixelRatio()
+                    size = int(size * device_pixel_ratio)
+                
+                pixmap = QPixmap(size, size)
+                pixmap.fill(Qt.transparent)
+                
+                # 渲染SVG
+                painter = QPainter(pixmap)
+                painter.setRenderHint(QPainter.Antialiasing)
+                renderer.render(painter)
+                painter.end()
+                
+                if self.window():
+                    pixmap.setDevicePixelRatio(device_pixel_ratio)
+                
+                # 设置图标
+                self.icon_label.setPixmap(pixmap)
+                self.icon_label.setFixedSize(24, 24)  # 固定显示大小
         
-        if os.path.exists(icon_path):
-            # 读取SVG文件内容
-            with open(icon_path, 'r', encoding='utf-8') as f:
-                svg_content = f.read()
-            
-            # 替换颜色
-            color = "#ffffff" if self._is_dark_mode else "#292C30"
-            svg_content = svg_content.replace('currentColor', color)
-            
-            # 创建临时文件来存储修改后的SVG
-            temp_path = os.path.join(current_dir, '..', 'icons', 'fluent', 'temp.svg')
-            with open(temp_path, 'w', encoding='utf-8') as f:
-                f.write(svg_content)
-            
-            # 渲染SVG
-            renderer = QSvgRenderer(temp_path)
-            pixmap = QPixmap(64, 64)
-            pixmap.fill(Qt.transparent)
-            painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
-            painter.setRenderHint(QPainter.SmoothPixmapTransform)
-            renderer.render(painter)
-            painter.end()
-            
-            # 删除临时文件
-            os.remove(temp_path)
-            
-            # 设置图标
-            self.icon_label.setPixmap(pixmap)
-            
-            # 设置图标透明度
-            opacity_effect = QGraphicsOpacityEffect(self.icon_label)
-            opacity_effect.setOpacity(0.6)  # 设置60%不透明度
-            self.icon_label.setGraphicsEffect(opacity_effect)
-        else:
-            print(f"图标文件不存在: {icon_path}")
+        except Exception as e:
+            print(f"设置图标失败: {str(e)}")
             self.icon_label.clear()
         
     def set_dark_mode(self, is_dark):

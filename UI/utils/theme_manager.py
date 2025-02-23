@@ -1,7 +1,5 @@
 import sys
-import ctypes
 from ctypes import windll, c_int, byref, sizeof
-import winreg
 from enum import Enum, auto
 from PySide6.QtCore import QObject, Signal, Property, Qt, QTimer
 from PySide6.QtGui import QPalette, QColor, QPainter, QRadialGradient
@@ -64,6 +62,10 @@ class ThemeManager(QObject):
         self._window = window
         if window:
             self._apply_current_backdrop()
+            # 先发送主题信号，确保所有组件都能收到初始主题状态
+            self.themeChanged.emit(self._dark_mode)
+            self.accentColorChanged.emit(self._accent_color)
+            # 然后设置主题模式
             self.setDarkMode(self._dark_mode)
 
     def isDarkMode(self) -> bool:

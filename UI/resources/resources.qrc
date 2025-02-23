@@ -1,0 +1,21 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/resources">
+        <file>home.svg</file>
+        <file>setting.svg</file>
+        <file>light_mode.svg</file>
+        <file>dark_mode.svg</file>
+        <file>up_arrow.svg</file>
+        <file>down_arrow.svg</file>
+        <file>ic_fluent_delete_regular.svg</file>
+        <file>ic_fluent_home_regular.svg</file>
+        <file>ic_fluent_settings_regular.svg</file>
+        <file>ic_fluent_clear_formatting_regular.svg</file>
+        <file>ic_fluent_info_filled.svg</file>
+        <file>ic_fluent_warning_filled.svg</file>
+        <file>ic_fluent_dismiss_circle_filled.svg</file>
+        <file>ic_fluent_checkmark_circle_filled.svg</file>
+        <file>ic_fluent_checkmark_regular.svg</file>
+        <file>dbdwindow.ico</file>
+    </qresource>
+</RCC> 

@@ -2,7 +2,6 @@ from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, Property, QRectF, QSize, QPropertyAnimation, QEasingCurve, Signal
 from PySide6.QtGui import QPainter, QColor, QFont, QPen
 from PySide6.QtSvg import QSvgRenderer
-from io import BytesIO
 
 class ModernCheckBox(QWidget):
     """现代化多选框组件"""
@@ -86,7 +85,7 @@ class ModernCheckBox(QWidget):
             self._background_color = QColor(50, 42, 49)
             # 设置暗色模式下的字体
             font = self.font()
-            font.setWeight(QFont.Bold)  # 使用粗体
+            font.setWeight(QFont.Normal)
             self.setFont(font)
         else:
             self._text_color = QColor("#2D2932")

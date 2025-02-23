@@ -67,7 +67,7 @@ class ModernRadioButton(QRadioButton):
 
         font = self.font()
         if self._is_dark_mode:
-            font.setWeight(QFont.Bold)  # 暗色模式下使用粗体
+            font.setWeight(QFont.Normal)  # 暗色模式下使用粗体
         else:
             font.setWeight(QFont.Normal)  # 亮色模式下使用正常字重
         self.setFont(font)
@@ -103,12 +103,21 @@ class ModernRadioButton(QRadioButton):
         
     def nextCheckState(self):
         """重写选中状态切换，添加动画"""
-        super().nextCheckState()
-        
+        super().nextCheckState()  # 恢复父类的状态切换逻辑
         # 开始选中动画
         self._check_animation.setStartValue(0.0 if self.isChecked() else 1.0)
         self._check_animation.setEndValue(1.0 if self.isChecked() else 0.0)
         self._check_animation.start()
+        
+    def setChecked(self, checked: bool):
+        """重写设置选中状态方法"""
+        was_checked = self.isChecked()
+        super().setChecked(checked)
+        # 只有当状态真正改变时才触发动画
+        if was_checked != checked:
+            self._check_animation.setStartValue(0.0 if checked else 1.0)
+            self._check_animation.setEndValue(1.0 if checked else 0.0)
+            self._check_animation.start()
         
     def enterEvent(self, event):
         """鼠标进入事件"""
@@ -128,15 +137,27 @@ class ModernRadioButton(QRadioButton):
         
     def sizeHint(self) -> QSize:
         """推荐尺寸"""
+        # 获取文本度量
         fm = self.fontMetrics()
-        text_width = fm.horizontalAdvance(self.text())
-        text_height = fm.height()
         
-        # 计算总宽度（指示器 + 间距 + 文本）
-        total_width = (self._indicator_radius * 2) + self._indicator_spacing + text_width
+        # 计算文本区域大小
+        text_rect = fm.boundingRect(
+            0, 0, 1000, 1000,  # 提供足够大的初始区域
+            Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignVCenter,
+            self.text()
+        )
         
-        # 返回尺寸
-        return QSize(total_width + 10, max(text_height, self._indicator_radius * 2) + 10)
+        # 计算所需的总宽度（指示器 + 间距 + 文本）
+        total_width = (self._indicator_radius * 2) + self._indicator_spacing + text_rect.width()
+        
+        # 计算所需的总高度（取文本高度和指示器高度的较大值）
+        total_height = max(text_rect.height(), self._indicator_radius * 2)
+        
+        # 添加一些边距
+        total_width += 10  # 左右各5px边距
+        total_height += 10  # 上下各5px边距
+        
+        return QSize(total_width, total_height)
         
     def paintEvent(self, event):
         """绘制单选框"""

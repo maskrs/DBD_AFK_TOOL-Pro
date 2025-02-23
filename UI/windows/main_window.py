@@ -1,10 +1,12 @@
-from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedWidget
+from PySide6.QtWidgets import QMainWindow, QWidget, QHBoxLayout
 from PySide6.QtCore import Qt
 from UI.utils.theme_manager import ThemeManager
 from UI.components.nav_bar import NavBar
 from UI.pages.home_page import HomePage
 from UI.pages.settings_page import SettingsPage
 from UI.components.animated_stack import AnimatedStackedWidget
+import UI.resources.resources_rc
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -66,15 +68,15 @@ class MainWindow(QMainWindow):
 
     def _setup_pages(self):
         """创建所有页面"""
-        # 测试页面
+        # 主页页面
         home_page = HomePage(self.theme_manager)
         self.page_stack.addWidget(home_page)
-        self.nav_bar.addPage(r"D:\Project\DBD_AFK_TOOL\UI\images\home.svg", "主页", "home")
+        self.nav_bar.addPage("home", "主页", "home")
         
         # 设置页面
         settings_page = SettingsPage(self.theme_manager)
         self.page_stack.addWidget(settings_page)
-        self.nav_bar.addPage(r"D:\Project\DBD_AFK_TOOL\UI\images\setting.svg", "设置", "settings")
+        self.nav_bar.addPage("setting", "设置", "settings")
 
     def _on_page_changed(self, page_id: str):
         """页面切换处理"""

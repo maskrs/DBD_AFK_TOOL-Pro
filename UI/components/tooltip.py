@@ -33,7 +33,10 @@ class ToolTip(QWidget):
         """初始化UI"""
         # 创建文本标签
         self._label = QLabel(self)
-        self._label.setAlignment(Qt.AlignCenter)
+        self._label.setAlignment(Qt.AlignLeft)
+        self._label.setWordWrap(True)  # 启用自动换行
+        self._max_width = 300  # 设置最大宽度
+        self._h_padding = 10  # 水平内边距
         
         # 设置初始大小
         self.resize(10, 36)
@@ -60,8 +63,9 @@ class ToolTip(QWidget):
                 background-color: {bg_color};
                 color: {text_color};
                 border-radius: {self._border_radius}px;
-                padding: 6px 15px;
-                font-size: 13px;
+                padding: 6px {self._h_padding}px;
+                font-size: 12px;
+                font-family: "Segoe UI";
             }}
         """)
         
@@ -96,8 +100,30 @@ class ToolTip(QWidget):
         
     def _adjust_size(self):
         """调整大小"""
-        # 获取文本尺寸
+        # 先计算不换行时的文本宽度
+        fm = self._label.fontMetrics()
+        text_width = fm.horizontalAdvance(self._label.text())
+        
+        # 如果文本宽度小于最大可用宽度，则使用实际宽度
+        if text_width <= (self._max_width - 25):  # 左右padding的总和
+            self._label.setWordWrap(False)  # 禁用自动换行
+            self._label.adjustSize()
+            actual_width = text_width + 25
+        else:
+            # 如果超过最大宽度，则启用自动换行
+            self._label.setWordWrap(True)
+            # 计算换行后的文本区域
+            text_rect = fm.boundingRect(
+                0, 0, self._max_width - 30, 1000,
+                Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignVCenter,
+                self._label.text()
+            )
+            actual_width = self._max_width
+            
+        # 设置标签宽度并让它调整高度
+        self._label.setFixedWidth(actual_width)
         self._label.adjustSize()
+        
         # 调整窗口大小
         self.resize(self._label.width(), self._label.height())
         # 设置标签位置和大小（填满整个窗口）

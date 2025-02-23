@@ -3,8 +3,7 @@ Configuration Manager Module - Handles application settings and persistence
 """
 import json
 import os
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from threading import Lock
 from configparser import ConfigParser
 
@@ -43,6 +42,18 @@ class ConfigManager:
             self._user_config = {}
             self._ui_config = self._get_default_ui_config()
             
+            # 确保配置文件存在
+            if not os.path.exists(self.cfg_path):
+                # 创建默认配置
+                for section, values in self._ui_config.items():
+                    if not self._config.has_section(section):
+                        self._config.add_section(section)
+                    for key, value in values.items():
+                        self._config.set(section, key, str(value))
+                # 保存默认配置
+                with open(self.cfg_path, 'w', encoding='utf-8') as f:
+                    self._config.write(f)
+            
             # 加载配置
             self.load_configs()
     
@@ -52,6 +63,20 @@ class ConfigManager:
             # 加载系统配置
             if os.path.exists(self.cfg_path):
                 self._config.read(self.cfg_path, encoding='utf-8')
+                # 从配置文件加载到UI配置字典
+                for section in ['CPCI', 'SEKI', 'CUCOM', 'UPDATE', 'CUSSEC', 'PIV', 'THEME']:
+                    if self._config.has_section(section):
+                        if section not in self._ui_config:
+                            self._ui_config[section] = {}
+                        for key, value in self._config.items(section):
+                            # PIV_KEY 保持原始字符串值，其他转换为布尔值
+                            if section == 'PIV' and key == 'piv_key':
+                                self._ui_config[section][key.upper()] = value
+                            else:
+                                try:
+                                    self._ui_config[section][key] = self._config.getboolean(section, key)
+                                except ValueError:
+                                    self._ui_config[section][key] = False
             
             # 加载用户自定义参数
             if os.path.exists(self.sdargs_path):
@@ -64,10 +89,20 @@ class ConfigManager:
         """Save all configuration files"""
         with self._lock:
             # 保存系统配置
-            os.makedirs(os.path.dirname(self.cfg_path), exist_ok=True)
+            for section, components in self._ui_config.items():
+                if not self._config.has_section(section):
+                    self._config.add_section(section)
+                for key, value in components.items():
+                    # PIV_KEY 保持原始值，其他转换为布尔值
+                    if section == 'PIV' and key == 'PIV_KEY':
+                        self._config.set(section, key, str(value))
+                    else:
+                        self._config.set(section, key, str(bool(value)).lower())
+
+            # 保存到文件
             with open(self.cfg_path, 'w', encoding='utf-8') as f:
                 self._config.write(f)
-            
+
             # 保存用户自定义参数
             with open(self.sdargs_path, 'w', encoding='utf-8') as f:
                 json.dump(self._user_config, f, indent=4, ensure_ascii=False)
@@ -90,7 +125,11 @@ class ConfigManager:
             if not self._config.has_section(section):
                 self._config.add_section(section)
             for key, value in values.items():
-                self._config.set(section, key, str(value))
+                # PIV_KEY 保持原始值，其他转换为布尔值
+                if section == 'PIV' and key == 'PIV_KEY':
+                    self._config.set(section, key, str(value))
+                else:
+                    self._config.set(section, key, str(bool(value)).lower())
             self.save_configs()
     
     def get_ui_config(self) -> Dict[str, Dict[str, Any]]:
@@ -112,7 +151,15 @@ class ConfigManager:
             for section, components in ui_states.items():
                 if section in self._ui_config:
                     self._ui_config[section].update(components)
-            self.save_configs()
+                    # 同时更新ConfigParser中的值
+                    if not self._config.has_section(section):
+                        self._config.add_section(section)
+                    for key, value in components.items():
+                        # PIV_KEY 保持原始值，其他转换为布尔值
+                        if section == 'PIV' and key == 'PIV_KEY':
+                            self._config.set(section, key, str(value))
+                        else:
+                            self._config.set(section, key, str(bool(value)).lower())
     
     def _get_default_ui_config(self) -> Dict[str, Dict[str, Any]]:
         """Get default UI configuration"""
@@ -137,6 +184,9 @@ class ConfigManager:
         update_keys = ["cb_autocheck", "rb_chinese", "rb_english"]
         update_dict = {key: False for key in update_keys}
 
+        # THEME Configuration
+        theme_dict = {"dark_mode": False}
+
         # CUSSEC (Custom Section Configuration)
         killer_list = [
             "jiage", "dingdang", "dianjv", "hushi", "tuzi", "maishu", "linainai",
@@ -156,6 +206,7 @@ class ConfigManager:
             "SEKI": seki_dict,
             "CUCOM": cucom_dict,
             "UPDATE": update_dict,
+            "THEME": theme_dict,
             "CUSSEC": cussec_dict,
             "PIV": piv_dict
         }

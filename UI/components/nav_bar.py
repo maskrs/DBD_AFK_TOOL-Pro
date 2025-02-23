@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, Property, QRectF, QSize, Signal, QPropertyAnimation, QEasingCurve
+from PySide6.QtCore import Qt, Property, QRectF, QSize, Signal, QPropertyAnimation, QEasingCurve, QFile
 from PySide6.QtGui import (
     QPainter, QColor, QPaintEvent, 
     QMouseEvent, QEnterEvent, QIcon, QPixmap
@@ -6,6 +6,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QPushButton, QHBoxLayout, QLabel, QWidget, QVBoxLayout
 from PySide6.QtSvg import QSvgRenderer
 from pathlib import Path
+import UI.resources.resources_rc
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,11 +17,11 @@ class NavButton(QPushButton):
     
     clicked = Signal(str)  # 发送页面标识信号
     
-    def __init__(self, icon_path: str, text: str, page_id: str, parent=None):
+    def __init__(self, icon_name: str, text: str, page_id: str, parent=None):
         super().__init__(text, parent)
         self._page_id = page_id
         self._is_selected = False
-        self._icon_path = icon_path
+        self._icon_name = icon_name
         
         # 状态管理
         self._hover_state = False
@@ -131,7 +132,7 @@ class NavButton(QPushButton):
                 self._hover_color = QColor(41,41,41,200)
                 self._hovered_color = QColor(42,39,47,180)
                 self._press_color = QColor(46,43,51,220)
-                self._font_weight = "bold"
+                self._font_weight = "normal"
             else:
                 self._bg_color = QColor("transparent")
                 self._text_color = QColor("#2D2932")
@@ -144,8 +145,8 @@ class NavButton(QPushButton):
             self._text_label.setStyleSheet(f"""
                 QLabel {{
                     color: {self._text_color.name()};
-                    font-size: 14px;
-                    font-family: "Arial";
+                    font-size: 13px;
+                    font-family: "Segoe UI";
                     font-weight: {self._font_weight};
                     background: transparent;
                 }}
@@ -196,7 +197,7 @@ class NavButton(QPushButton):
                 indicator_color = QColor("#6843d1")  # 默认颜色
             
             # 计算指示条的矩形
-            total_height = self.height() * 0.45  # 指示条最大高度为按钮高度的%
+            total_height = self.height() * 0.50  # 指示条最大高度为按钮高度的%
             current_height = total_height * self._indicator_height
             y_offset = (self.height() - current_height) / 2
             
@@ -270,29 +271,30 @@ class NavButton(QPushButton):
     
     def update_icon(self):
         """更新图标"""
-        if not self._icon_path:
+        if not self._icon_name:
             return
         
         try:
-            # 使用 Path 对象处理路径，避免转义字符问题
-            icon_path = Path(self._icon_path).resolve()
-            is_svg = icon_path.suffix.lower() == '.svg'
+            # 构建资源路径
+            icon_path = f":/resources/{self._icon_name}.svg"
             
-            if is_svg:
-                # 获取设备像素比
-                device_pixel_ratio = self.window().devicePixelRatio() if self.window() else 1.0
-                # 计算实际需要的像素大小
-                pixel_size = int(20 * device_pixel_ratio)  # 基础大小 * 设备像素比
-                
-                # 获取颜色 - 根据选中状态使用不同颜色
-                if self._theme_manager:
-                    accent = self._theme_manager.accent_color
-                    color = f"#{accent['red']:02x}{accent['green']:02x}{accent['blue']:02x}"
-                else:
-                    color = "#000000"
-                    
-                # 使用 Path 对象读取文件
-                svg_content = icon_path.read_text(encoding='utf-8')
+            # 获取设备像素比
+            device_pixel_ratio = self.window().devicePixelRatio() if self.window() else 1.0
+            # 计算实际需要的像素大小
+            pixel_size = int(20 * device_pixel_ratio)  # 基础大小 * 设备像素比
+            
+            # 获取颜色 - 根据选中状态使用不同颜色
+            if self._theme_manager:
+                accent = self._theme_manager.accent_color
+                color = f"#{accent['red']:02x}{accent['green']:02x}{accent['blue']:02x}"
+            else:
+                color = "#000000"
+            
+            # 从Qt资源系统读取SVG
+            file = QFile(icon_path)
+            if file.open(QFile.ReadOnly | QFile.Text):
+                svg_content = str(file.readAll().data(), encoding='utf-8')
+                file.close()
                 
                 # 替换颜色
                 svg_content = svg_content.replace('currentColor', color)
@@ -317,14 +319,6 @@ class NavButton(QPushButton):
                 painter.end()
                 
                 # 设置设备像素比
-                pixmap.setDevicePixelRatio(device_pixel_ratio)
-                self._icon_label.setPixmap(pixmap)
-            else:
-                # 非SVG文件使用原有方式，但也考虑DPI
-                icon = QIcon(str(icon_path))
-                device_pixel_ratio = self.window().devicePixelRatio() if self.window() else 1.0
-                pixel_size = int(24 * device_pixel_ratio)
-                pixmap = icon.pixmap(pixel_size, pixel_size)
                 pixmap.setDevicePixelRatio(device_pixel_ratio)
                 self._icon_label.setPixmap(pixmap)
                 
@@ -364,7 +358,7 @@ class NavBar(QWidget):
         # 创建内容区域
         self._content = QWidget()
         self._content.setAutoFillBackground(False)
-        self._content.setMinimumWidth(200)
+        self._content.setMinimumWidth(160)
         self._content.setContentsMargins(5, 10, 10, 0)
         
         # 创建布局
@@ -387,11 +381,16 @@ class NavBar(QWidget):
             }
         """)
     
-    def addPage(self, icon_path: str, text: str, page_id: str):
-        """添加页面"""
+    def addPage(self, icon_name: str, text: str, page_id: str):
+        """添加页面
+        Args:
+            icon_name: 图标名称,例如 'ic_fluent_home_regular'
+            text: 按钮文本
+            page_id: 页面标识
+        """
         if page_id not in self._buttons:
             # 创建按钮
-            button = NavButton(icon_path, text, page_id, self)
+            button = NavButton(icon_name, text, page_id, self)
             button.clicked.connect(self._on_button_clicked)
             self._buttons[page_id] = button
             

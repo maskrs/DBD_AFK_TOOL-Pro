@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QStackedWidget, QWidget
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Property, QPoint
-from PySide6.QtGui import QPainter, QPixmap, QColor, QRegion
+from PySide6.QtGui import QPainter, QPixmap, QRegion
 from PySide6.QtWidgets import QApplication
 import logging
 

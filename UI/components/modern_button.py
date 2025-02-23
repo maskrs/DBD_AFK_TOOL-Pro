@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QPushButton, QWidget
 from PySide6.QtCore import Qt, Property, Signal, QRectF, QSize, QTimer, QPropertyAnimation, QEasingCurve, QRect
-from PySide6.QtGui import QPainter, QColor, QPainterPath, QPaintEvent, QFont, QFontMetrics, QLinearGradient
+from PySide6.QtGui import QPainter, QColor, QPainterPath, QFont, QFontMetrics, QLinearGradient
+from PySide6.QtGui import QIcon
 from .tooltip import ToolTip
 
 class ModernButton(QPushButton):
@@ -48,11 +49,37 @@ class ModernButton(QPushButton):
         self._border_radius = 7
         self._border_width = 1
         
+        # 颜色属性
+        self._custom_color = None  # 自定义颜色
+        
         # 初始化颜色（后续会被主题更新）
         self._update_colors()
         
     def _update_colors(self):
         """更新颜色"""
+        if self._custom_color:
+            # 使用自定义颜色
+            self._background_color = self._custom_color
+            # 生成hover和pressed颜色
+            self._hover_color = QColor(
+                min(self._custom_color.red() + 20, 255),
+                min(self._custom_color.green() + 20, 255),
+                min(self._custom_color.blue() + 20, 255),
+                self._custom_color.alpha()
+            )
+            self._pressed_color = QColor(
+                max(self._custom_color.red() - 20, 0),
+                max(self._custom_color.green() - 20, 0),
+                max(self._custom_color.blue() - 20, 0),
+                self._custom_color.alpha()
+            )
+            # 根据背景色亮度自动设置文字颜色
+            brightness = (self._custom_color.red() * 299 + 
+                        self._custom_color.green() * 587 + 
+                        self._custom_color.blue() * 114) / 1000
+            self._text_color = QColor("#FFFFFF") if brightness < 128 else QColor("#2D2932")
+            return
+
         if hasattr(self, 'theme_manager'):
             accent = self.theme_manager.accent_color
             self._accent_color = QColor(accent['red'], accent['green'], accent['blue'])
@@ -93,7 +120,7 @@ class ModernButton(QPushButton):
         # 设置字体粗细
         font = self.font()
         if self._is_dark_mode:
-            font.setWeight(QFont.Bold)  # 暗色模式下使用粗体
+            font.setWeight(QFont.Normal)  
         else:
             font.setWeight(QFont.Normal)  # 亮色模式下使用正常字重
         self.setFont(font)
@@ -102,7 +129,7 @@ class ModernButton(QPushButton):
         
     def _init_style(self):
         """初始化样式"""
-        self.setFont(QFont("Segoe UI", 11))
+        self.setFont(QFont("Segoe UI", 10))
         self.setMinimumSize(36, 36)  # 设置最小尺寸为正方形
         
     def _setup_animations(self):
@@ -150,9 +177,16 @@ class ModernButton(QPushButton):
             self._highlight = highlight
             self._update_colors()
             
-    def setIcon(self, icon):
-        """设置图标"""
-        super().setIcon(icon)
+    def setIcon(self, icon_name: str):
+        """设置图标
+        Args:
+            icon_name: 图标资源名称，如 'light_mode' 或 'dark_mode'
+        """
+        if isinstance(icon_name, str):
+            icon = QIcon(f":/resources/{icon_name}.svg")
+            super().setIcon(icon)
+        else:
+            super().setIcon(icon_name)
         self.update()
         
     def setIconSize(self, size: QSize):
@@ -338,6 +372,24 @@ class ModernButton(QPushButton):
         if self._tooltip:
             self._tooltip.hide() 
 
+    def set_color(self, color):
+        """设置按钮颜色
+        Args:
+            color: 颜色值，可以是QColor对象、RGB字符串("#RRGGBB")或RGBA字符串("#RRGGBBAA")
+        """
+        if isinstance(color, str):
+            color = QColor(color)
+        if isinstance(color, QColor):
+            self._custom_color = color
+            self._update_colors()
+            self.update()
+
+    def reset_color(self):
+        """重置为默认颜色"""
+        self._custom_color = None
+        self._update_colors()
+        self.update()
+
 class ModernLongPressButton(ModernButton):
     """现代化长按按钮组件"""
     
@@ -390,7 +442,7 @@ class ModernLongPressButton(ModernButton):
                 # 设置字体粗细
         font = self.font()
         if self._is_dark_mode:
-            font.setWeight(QFont.Bold)  # 暗色模式下使用粗体
+            font.setWeight(QFont.Normal)  
         else:
             font.setWeight(QFont.Normal)  # 亮色模式下使用正常字重
         self.setFont(font)

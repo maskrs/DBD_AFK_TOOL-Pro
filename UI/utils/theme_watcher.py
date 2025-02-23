@@ -1,7 +1,6 @@
 from PySide6.QtCore import QAbstractNativeEventFilter, QCoreApplication
 from PySide6.QtWidgets import QApplication
 import ctypes
-import winreg
 from .system_theme_utils import get_system_theme, get_system_accent_color
 
 class ThemeWatcher(QAbstractNativeEventFilter):

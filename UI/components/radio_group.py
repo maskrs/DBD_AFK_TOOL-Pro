@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QButtonGroup
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from .radio_button import ModernRadioButton
 
 class ModernRadioGroup(QWidget):
@@ -18,6 +18,7 @@ class ModernRadioGroup(QWidget):
         super().__init__(parent)
         self._options = []
         self._radio_buttons = {}  # id -> ModernRadioButton
+        self._horizontal = horizontal  # 保存布局方向
         
         # 获取主题管理器
         if hasattr(parent, 'theme_manager'):
@@ -67,10 +68,58 @@ class ModernRadioGroup(QWidget):
     def set_selected(self, option_id):
         """设置选中项"""
         if option_id in self._radio_buttons:
-            self._radio_buttons[option_id].setChecked(True)
+            button = self._radio_buttons[option_id]
+            button.setChecked(True)
+            # 发送选中信号
+            self.selectionChanged.emit(option_id, button.text())
             
     def _on_button_clicked(self, option_id):
         """按钮点击事件"""
         button = self.button_group.button(option_id)
         if button:
             self.selectionChanged.emit(option_id, button.text()) 
+        
+    def sizeHint(self):
+        """返回建议的组件大小"""
+        if not self._radio_buttons:
+            return super().sizeHint()
+            
+        total_width = 0
+        total_height = 0
+        max_width = 0
+        max_height = 0
+        
+        # 计算所有按钮的尺寸
+        for button in self._radio_buttons.values():
+            size = button.sizeHint()
+            if self._horizontal:
+                total_width += size.width()
+                max_height = max(max_height, size.height())
+            else:
+                total_height += size.height()
+                max_width = max(max_width, size.width())
+                
+        # 添加间距
+        spacing = self.layout.spacing()
+        button_count = len(self._radio_buttons)
+        if button_count > 1:
+            if self._horizontal:
+                total_width += spacing * (button_count - 1)
+            else:
+                total_height += spacing * (button_count - 1)
+                
+        # 设置最终尺寸
+        if self._horizontal:
+            return QSize(total_width, max_height)
+        else:
+            return QSize(max_width, total_height)
+            
+    def minimumSizeHint(self):
+        """返回最小建议尺寸"""
+        return self.sizeHint()
+        
+    def resizeEvent(self, event):
+        """处理大小调整事件"""
+        super().resizeEvent(event)
+        # 确保所有按钮都能正确显示
+        self.update() 
