@@ -959,6 +959,32 @@
         </property>
        </widget>
       </item>
+      <item row="10" column="1">
+       <widget class="QCheckBox" name="cb_xunquanshi">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>训犬师</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="2">
+       <widget class="QCheckBox" name="cb_jinmuyan">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>食尸鬼</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>

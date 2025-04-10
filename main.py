@@ -1083,7 +1083,9 @@ class CustomSelectKiller:
             "cb_qiaji": "好孩子",
             "cb_ewu": "未知恶物",
             "cb_wuyao": "巫妖",
-            "cb_degula": "黑暗之主"
+            "cb_degula": "黑暗之主",
+            "cb_xunquanshi": "训犬师",
+            "cb_jinmuyan": "食尸鬼",
         }
         # 遍历配置项，根据配置项添加对应的杀手名称到列表中
         for key, value in killer_mapping_cn.items():
@@ -1137,7 +1139,9 @@ class CustomSelectKiller:
             "cb_qiaji": "GOOD GUY",
             "cb_ewu": "UNKNOWN",
             "cb_wuyao": "LICH",
-            "cb_degula": "DARK LORD"
+            "cb_degula": "DARK LORD",
+            "cb_xunquanshi": "HOUNDMASTER",
+            "cb_jinmuyan": "GHOUL",
         }
         # 遍历配置项，根据配置项添加对应的杀手名称到列表中
         for key, value in killer_mapping_en.items():
@@ -1618,7 +1622,7 @@ def check_update(ver_now: str):
         title = "检查更新" if lang == "chinese" else "Check for updates"
         confirm = win32api.MessageBox(0, message, title, win32con.MB_YESNO | win32con.MB_ICONQUESTION)
         if eq(confirm, 6):  # 打开
-            webbrowser.open("https://pd.qq.com/s/942n1n6dc")
+            # webbrowser.open("https://pd.qq.com/s/942n1n6dc")
             subprocess.call("update.exe")
             sys.exit()
 
@@ -2304,14 +2308,16 @@ def survivor_action() -> None:
 def killer_action() -> None:
     """killer integral action"""
     # 随版本更改，适配不同的屠夫
+    # 可使用ctrl技能的角色
     ctrl_lst_cn = ["医生", "梦魇", "小丑", "魔王", "连体婴", "影魔", "白骨商人", "好孩子", "未知恶物", "巫妖"]
+    # 使用右键+左键释放技能的角色
     need_lst_cn = ["门徒", "魔王", "死亡枪手", "骗术师", "NEMESIS", "地狱修士", "艺术家", "影魔", "奇点", "操纵者",
-                   "好孩子", "未知恶物", "巫妖", "黑暗之主"]
+                   "好孩子", "未知恶物", "巫妖", "黑暗之主", "训犬师"]
     ctrl_lst_en = ["DOCTOR", "NIGHTMARE", "CLOWN", "DEMOGORGON", "TWINS", "DREDGE", "SKULL MERCHANT", "GOOD GUY",
                    "UNKNOWN", "LICH"]
     need_lst_en = ["PIG", "DEMOGORGON", "DEATHSLINGER", "TRICKSTER", "NEMESIS",
                    "CENOBITE", "ARTIST", "DREDGE", "SINGULARITY", "MASTERMIND", "GOOD GUY", "UNKNOWN",
-                   "LICH", "DARK LORD"]
+                   "LICH", "DARK LORD", "HOUNDMASTER"]
     ctrl_lst = []
     need_lst = []
     if cfg.getboolean("UPDATE", "rb_chinese"):
@@ -2367,6 +2373,24 @@ def killer_action() -> None:
             time.sleep(5)
             release_key(act_move)
             release_mouse('right')
+        elif eq(custom_select.select_killer_lst[killer_num], "食尸鬼") or eq(
+                custom_select.select_killer_lst[killer_num], "GHOUL"):
+            press_key('w')
+            press_mouse('right')
+            time.sleep(1)
+            press_mouse()
+            time.sleep(0.05)
+            release_mouse()
+            release_mouse('right')
+            for _ in range(2):
+                act_direction = random_direction()
+                press_key(act_direction)
+                time.sleep(0.7)
+                press_mouse()
+                time.sleep(0.05)
+                release_mouse()
+                release_key(act_direction)
+            release_key('w')
         elif custom_select.select_killer_lst[killer_num] in need_lst:
             act_direction = random_direction()
             for _ in range(5):
@@ -2411,22 +2435,52 @@ def killer_fixed_act() -> None:
     except IndexError:
         print(f"下标越界···{killer_num}")
 
+    # press_key('w')
+    # killer_ctrl()
+    # for _ in range(4):
+    #     move_time = round(random.uniform(1.5, 5.0), 3)
+    #     random_move(move_time)
+    #     veertime = round(random.uniform(0.285, 0.6), 3)
+    #     random_veer(veertime)
+    #     press_mouse('right')
+    #     time.sleep(4)
+    #     release_mouse('right')
+    #     time.sleep(0.3)
+    # press_mouse()
+    # time.sleep(2)
+    # release_mouse()
+    # release_key('w')
+
     press_key('w')
-    killer_ctrl()
-    for _ in range(4):
-        move_time = round(random.uniform(1.5, 5.0), 3)
-        random_move(move_time)
-        veertime = round(random.uniform(0.285, 0.6), 3)
-        random_veer(veertime)
-        press_mouse('right')
-        time.sleep(4)
-        release_mouse('right')
-        time.sleep(0.3)
+    press_mouse('right')
+    time.sleep(4.3)
+    release_mouse('right')
+    press_key('w')
     press_mouse()
     time.sleep(2)
     release_mouse()
-    release_key('w')
-
+    time.sleep(1)
+    press_key('s')
+    killer_ctrl()
+    press_key('s')
+    press_mouse()
+    time.sleep(2)
+    release_mouse()
+    time.sleep(1)
+    press_key('a')
+    press_mouse('right')
+    time.sleep(3)
+    release_mouse('right')
+    press_key('a')
+    press_key('d')
+    press_mouse('right')
+    time.sleep(3)
+    release_mouse('right')
+    press_key('d')
+    press_mouse()
+    time.sleep(2)
+    release_mouse()
+    time.sleep(1)
 
 def character_selection() -> None:
     """自选特定的角色轮换"""
@@ -2451,7 +2505,7 @@ def character_selection() -> None:
 
     MControl.moveclick(self_defined_args['第一个角色坐标'][0], self_defined_args['第一个角色坐标'][1], 1, times=2,
                        interval=1)
-    MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1, times=2,
+    MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1, times=1,
                        interval=1)
 
     if index < len(custom_select.select_killer_lst):
@@ -2918,7 +2972,7 @@ if __name__ == '__main__':
             "babu", "fulaidi", "zhuzhu", "xiaochou", "lingmei", "juntuan", "wenyi", "guimian",
             "mowang", "guiwushi", "qiangshou", "sanjiaotou", "kumo", "liantiying", "gege",
             "zhuizhui", "dingzitou", "niaojie", "zhenzi", "yingmo", "weishu", "eqishi",
-            "baigu", "jidian", "yixing", "qiaji", "ewu", "wuyao", "degula"
+            "baigu", "jidian", "yixing", "qiaji", "ewu", "wuyao", "degula", "xunquanshi", "jinmuyan"
         ]
     ]
     cussec_dict = {key: getattr(selectWindowUi, key) for key in cussec_keys}
@@ -3007,7 +3061,7 @@ if __name__ == '__main__':
 
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
-        check_update('V2.8.1')
+        check_update('V2.8.2')
     
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()
