@@ -2193,7 +2193,9 @@ def disconnect_confirm(sum=120) -> None:
             # print(f"关键字：{target_string},坐标：({confirmx}, {confirmy})")
             MControl.moveclick(disconnect_check_colorXY[0] + confirmx + self_defined_args["断线确认偏移量"][0], disconnect_check_colorXY[3] - confirmy + self_defined_args["断线确认偏移量"][1],
                                1, 1)
-            py.press('enter')
+            press_key('enter')
+            time.sleep(0.1)
+            release_key('enter')
             # 找到了坐标，跳出循环
             break
 
@@ -2379,7 +2381,7 @@ def killer_action() -> None:
             press_mouse('right')
             time.sleep(1)
             press_mouse()
-            time.sleep(0.05)
+            time.sleep(0.1)
             release_mouse()
             release_mouse('right')
             for _ in range(2):
@@ -2387,7 +2389,7 @@ def killer_action() -> None:
                 press_key(act_direction)
                 time.sleep(0.7)
                 press_mouse()
-                time.sleep(0.05)
+                time.sleep(0.1)
                 release_mouse()
                 release_key(act_direction)
             release_key('w')

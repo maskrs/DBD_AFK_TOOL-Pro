@@ -130,6 +130,7 @@ def killer_skillclick(skill_key: str = 'lcontrol') -> None:
     mouse_down("mouse_right")
     time.sleep(3)
     mouse_down()
+    time.sleep(0.1)
     mouse_up()
     mouse_up("mouse_right")
     time.sleep(2)
