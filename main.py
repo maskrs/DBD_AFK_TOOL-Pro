@@ -651,14 +651,15 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                     elif isinstance(self_defined_args[setting_key][0], str):
                         # 期望新值为字符串列表，这里假设以逗号分隔
                         settings_value = [item.strip() for item in settings_value]
-                except ValueError:
+                except (ValueError, IndexError):
                     # 如果转换失败，返回原始文本值
                     settings_value = widget.text()
-                except IndexError:
-                    pass
                 # 更新 self_defined_args 字典
                 self_defined_args[setting_key] = settings_value
-                # print(f'获取更改后的值：{self_defined_args}')
+            elif isinstance(widget, QTextEdit):
+                # 对于QTextEdit控件，直接获取纯文本内容
+                text_value = widget.toPlainText()
+                self_defined_args[setting_key] = text_value
     
     def on_content_change(self):
         self.content_changed = True
