@@ -23,7 +23,7 @@ import requests
 import win32api
 import win32con
 import win32gui
-from pynput import keyboard
+import keyboard 
 import logging
 import sentry_sdk
 import pictures_rc  # 导入资源文件
@@ -34,7 +34,7 @@ from simpleaudio import WaveObject
 from configparser import ConfigParser
 from operator import eq, gt, ge, ne
 from PyQt5.QtCore import QTranslator, QLocale, Qt, QCoreApplication, QThread, pyqtSignal, QRegExp, QEvent, \
-    pyqtSlot, QObject
+    pyqtSlot, QObject, QTimer
 from PyQt5.QtGui import QIcon, QPalette, QSyntaxHighlighter, QTextCharFormat, QFont, QColor, QMovie, QPixmap
 from PyQt5.QtWidgets import *
 from typing import Callable, Optional
@@ -56,6 +56,7 @@ from Utils.GameOperate import (press_key, release_key, press_mouse, release_mous
 from Utils.background_operation import screenshot
 from Utils.CustomAction import ActionExecutor
 from Utils.Client2ScreenOperate import MouseController
+
 
 class CustomSplashScreen(QSplashScreen):
     def __init__(self, pixmap):
@@ -428,6 +429,109 @@ class CustomCommand(QWidget, Ui_CustomCommand):
         manager.sMessageBox('测试结束！', 'info')
 
 
+class ShortcutRecorder(QObject):
+    recordingComplete = pyqtSignal(str)  # 添加信号
+    
+    def __init__(self):
+        super().__init__()  # 调用父类初始化
+        self.recording = False
+        self.current_modifiers = []  # 记录当前按下的修饰键
+        self.trigger_key = None  
+        self.trigger_modifiers = []  # 保存触发键按下时的修饰键
+        self.hook_id = None  # 保存钩子ID，以便单独移除
+        self._callback = None
+        self._target_widget = None
+        # 连接信号到槽
+        self.recordingComplete.connect(self._handle_recording_complete)
+
+    def start_recording(self, callback=None, target_widget=None):
+        """启动录制
+        :param callback: 录制完成后的回调函数
+        :param target_widget: 目标输入框控件"""
+        if self.recording:
+            return
+        self.recording = True
+        self.current_modifiers.clear()
+        self.trigger_key = None 
+        self.trigger_modifiers = []
+        self._callback = callback
+        self._target_widget = target_widget
+
+        # 给输入框添加提示文本
+        if self._target_widget:
+            self._target_widget.setReadOnly(True)
+            self._target_widget.setPlaceholderText("请按下快捷键...")
+            self._target_widget.setText("")
+            self._target_widget.setFocus()
+        
+        self.hook_id = keyboard.hook(self._on_event)
+
+    def _on_event(self, event):
+        """处理按键事件"""
+        # 如果不在录制状态,直接返回
+        if not self.recording:
+            return
+
+        # 获取按键名称
+        key_name = event.name.lower() if event.name else None
+
+        # 修饰键列表
+        modifier_keys = ['ctrl', 'alt', 'shift', 'win']
+
+        # 按键按下
+        if event.event_type == keyboard.KEY_DOWN:
+            if key_name in modifier_keys:
+                if key_name not in self.current_modifiers:
+                    self.current_modifiers.append(key_name)
+            elif key_name and not event.is_keypad: # 确保不是小键盘的按键
+                self.trigger_key = key_name
+                self.trigger_modifiers = self.current_modifiers.copy()
+                self._complete_recording()
+
+        # 按键释放
+        elif event.event_type == keyboard.KEY_UP:
+            if key_name in modifier_keys:
+                if key_name in self.current_modifiers:
+                    self.current_modifiers.remove(key_name)
+
+    def _handle_recording_complete(self, shortcut):
+        if self._target_widget:
+            # 清除焦点和只读状态
+            self._target_widget.clearFocus()  
+            self._target_widget.setReadOnly(False)
+            self._target_widget.setPlaceholderText("")
+
+        if self._callback:
+            self._callback(shortcut)
+
+    def _complete_recording(self):
+        """完成录制"""
+        if not self.recording:
+            return
+
+        # 防止重复触发
+        self.recording = False
+
+        # 构建快捷键字符串
+        shortcut = ""
+        if self.trigger_modifiers and self.trigger_key:
+            shortcut = "+".join(self.trigger_modifiers + [self.trigger_key])
+        elif self.trigger_modifiers:
+            shortcut = "+".join(self.trigger_modifiers)
+        elif self.trigger_key:
+            shortcut = self.trigger_key
+
+        # 清理状态
+        self.current_modifiers.clear()
+        self.trigger_key = None
+        self.trigger_modifiers = []
+        if self.hook_id is not None:
+            keyboard.unhook(self.hook_id)
+        self.hook_id = None
+
+        # 发送信号
+        self.recordingComplete.emit(shortcut)
+
 class AdvancedParameter(QDialog, Ui_AdvancedWindow):
     def __init__(self):
         super().__init__()
@@ -489,6 +593,13 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             self.le_rolexy: '角色选择按钮坐标',
             self.le_evrewards: 'event_rewards',
         }
+        self.shortcut_recorder = ShortcutRecorder()
+
+         # 为快捷键输入框添加点击事件
+        self.le_start_key.mousePressEvent = lambda e: self.start_recording(self.le_start_key, '开始快捷键')
+        self.le_stop_key.mousePressEvent = lambda e: self.start_recording(self.le_stop_key, '停止快捷键')  
+        self.le_pause_key.mousePressEvent = lambda e: self.start_recording(self.le_pause_key, '暂停快捷键')
+
 
         self.load_settings()
         self.initUI()
@@ -684,7 +795,83 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                 self.pb_save_click()
             else:
                 event.accept()
+    
+    def start_recording(self, widget, key_name):
+        """开始录制快捷键"""
+        widget.setReadOnly(True)
+        widget.setPlaceholderText("请按下快捷键...")
+        widget.setText("")
+        
+        def on_complete(shortcut):
+            def update_ui():
+                widget.setReadOnly(False)
+                widget.setPlaceholderText("")
+                widget.setText(shortcut)
+                if shortcut:
+                    try:
+                        # 更新配置
+                        self_defined_args[key_name] = [shortcut]
+                        
+                        # 保存配置到文件
+                        with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
+                            json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
+                            
+                        # 重新注册热键
+                        hotkey_listener.update_hotkeys()
+                        log.debug(f"已更新热键: {key_name} -> {shortcut}")
+                        
+                    except Exception as e:
+                        log.error(f"保存热键配置失败: {e}")
+                        manager.sMessageBox("保存热键配置失败！", 'error')
+                        
+            QTimer.singleShot(0, update_ui)
+                
+        self.shortcut_recorder.start_recording(callback=on_complete, target_widget=widget)
 
+class HotkeyListener:
+    def __init__(self):
+        self.current_hotkeys = {}  # 存储当前注册的热键
+        self.running = True
+        
+    def start(self):
+        """启动热键监听"""
+        self.update_hotkeys()
+        
+    def update_hotkeys(self):
+        """更新热键注册"""
+        try:
+            # 先清除所有已注册的热键
+            keyboard.unhook_all()
+            
+            # 获取转换后的热键配置
+            formatted_hotkeys = convert_selected_hotkeys(self_defined_args)
+            
+            # 定义热键映射
+            hotkey_actions = {
+                '开始快捷键': begin,
+                '暂停快捷键': pause,
+                '停止快捷键': kill
+            }
+            
+            # 注册每个热键
+            for key_name, action in hotkey_actions.items():
+                if key_name in formatted_hotkeys and formatted_hotkeys[key_name]:
+                    try:
+                        hotkey = formatted_hotkeys[key_name][0]
+                        keyboard.add_hotkey(hotkey, action)
+                        self.current_hotkeys[key_name] = hotkey
+                        log.debug(f"已注册热键: {key_name} -> {hotkey}")
+                    except Exception as e:
+                        log.error(f"注册热键 {key_name} 失败: {e}")
+                        
+        except Exception as e:
+            log.error(f"更新热键失败: {e}")
+
+    def stop(self):
+        """停止热键监听"""
+        self.running = False
+        keyboard.unhook_all()
+        self.current_hotkeys.clear()
 
 
 class Custom_select(QWidget, Ui_Custom_select):
@@ -1809,106 +1996,171 @@ def action():
                 killer_action()
 
 
-def listen_key():
-    """快捷键监听"""
-
-    def pause():
-        global pause
-
-        if not pause:
-            try:
-                # 播放WAV文件
-                play_pau.play()
-            except SimpleaudioError:
-                pass
-            log.info(f"脚本已暂停")
-            pause = True
-            pause_event.clear()
-        elif pause:
-            try:
-                # 播放WAV文件
-                play_res.play()
-            except SimpleaudioError:
-                pass
-            log.info(f"脚本已恢复")
-            pause = False
-            pause_event.set()
-        try:
-            win32gui.SetForegroundWindow(hwnd)
-        except Exception as ex:
-            print(f"An error occurred: {ex}")
-
-    def convert_hotkey_format(hotkey):
-        """将热键格式转换为符合 keyboard 库的要求。"""
-        # 定义键的映射关系
-        key_mapping = {
-            # 可以添加更多的键映射
-            'alt': '<alt>',
-            'ctrl': '<ctrl>',
-            'shift': '<shift>',
-            'win': '<win>',
-            'space': '<space>',
-            'home': '<home>',
-            'end': '<end>',
-            'up': '<up>',
-            'down': '<down>',
-            'left': '<left>',
-            'right': '<right>',
-            'f1': '<f1>',
-            'f2': '<f2>',
-            'f3': '<f3>',
-            'f4': '<f4>',
-            'f5': '<f5>',
-            'f6': '<f6>',
-            'f7': '<f7>',
-            'f8': '<f8>',
-            'f9': '<f9>',
-            'f10': '<f10>',
-            'f11': '<f11>',
-            'f12': '<f12>',
-            'enter': '<enter>',
-            'tab': '<tab>',
-            'backspace': '<backspace>',
-            'delete': '<delete>',
-            'pageup': '<pageup>',
-            'pagedown': '<pagedown>',
-            'insert': '<insert>',
-            'pause': '<pause>',
-            'capslock': '<capslock>',
-            'numlock': '<numlock>',
-            'printscreen': '<printscreen>',
-            'esc': '<esc>',
-        }
-        
-        # 使用正则表达式匹配并替换键
-        pattern = r'\b(' + '|'.join(re.escape(key) for key in key_mapping.keys()) + r')\b'
-        converted_hotkey = re.sub(pattern, lambda x: key_mapping[x.group()], hotkey)
-        
-        return converted_hotkey
-
-    def convert_selected_hotkeys(args):
-        """仅转换指定的热键格式。"""
-        keys_to_convert = ['开始快捷键', '暂停快捷键', '停止快捷键']
-        for key in keys_to_convert:
-            if key in args and isinstance(args[key], list) and args[key]:
-                # 转换热键
-                args[key][0] = convert_hotkey_format(args[key][0])
-        return args
-
-    try:
-        formatted_hotkey = convert_selected_hotkeys(self_defined_args)
-        # 注册热键
-        hotkeys = {
-        formatted_hotkey['开始快捷键'][0]: begin,
-        formatted_hotkey['暂停快捷键'][0]: pause,
-        formatted_hotkey['停止快捷键'][0]: kill
+def convert_hotkey_format(hotkey):
+    """将热键格式转换为符合 keyboard 库的要求"""
+    # 定义键的映射关系，不添加尖括号
+    key_mapping = {
+        'alt': 'alt',
+        'ctrl': 'ctrl', 
+        'shift': 'shift',
+        'win': 'windows',
+        'space': 'space',
+        'home': 'home',
+        'end': 'end',
+        'up': 'up',
+        'down': 'down',
+        'left': 'left',
+        'right': 'right',
+        'f1': 'f1',
+        'f2': 'f2',
+        'f3': 'f3',
+        'f4': 'f4',
+        'f5': 'f5',
+        'f6': 'f6',
+        'f7': 'f7',
+        'f8': 'f8',
+        'f9': 'f9',
+        'f10': 'f10',
+        'f11': 'f11',
+        'f12': 'f12',
+        'enter': 'enter',
+        'tab': 'tab',
+        'backspace': 'backspace',
+        'delete': 'delete',
+        'pageup': 'page up',
+        'pagedown': 'page down',
+        'insert': 'insert',
+        'pause': 'pause',
+        'capslock': 'caps lock',
+        'numlock': 'num lock',
+        'printscreen': 'print screen',
+        'esc': 'esc'
     }
+    
+    # 分割组合键
+    keys = hotkey.lower().split('+')
+    
+    # 转换每个键
+    converted_keys = []
+    for key in keys:
+        key = key.strip()
+        if key in key_mapping:
+            converted_keys.append(key_mapping[key])
+        else:
+            converted_keys.append(key)
+            
+    # 重新组合键
+    return '+'.join(converted_keys)
 
-        # 创建全局热键监听器
-        with keyboard.GlobalHotKeys(hotkeys) as listener:
-            listener.join()
-    except Exception as e:
-        print(f"无效的热键: {e}")
+def convert_selected_hotkeys(args):
+    """仅转换指定的热键格式。"""
+    keys_to_convert = ['开始快捷键', '暂停快捷键', '停止快捷键']
+    for key in keys_to_convert:
+        if key in args and isinstance(args[key], list) and args[key]:
+            # 转换热键
+            args[key][0] = convert_hotkey_format(args[key][0])
+    return args
+
+# def listen_key():
+#     """快捷键监听"""
+
+#     def pause():
+#         global pause
+
+#         if not pause:
+#             try:
+#                 # 播放WAV文件
+#                 play_pau.play()
+#             except SimpleaudioError:
+#                 pass
+#             log.info(f"脚本已暂停")
+#             pause = True
+#             pause_event.clear()
+#         elif pause:
+#             try:
+#                 # 播放WAV文件
+#                 play_res.play()
+#             except SimpleaudioError:
+#                 pass
+#             log.info(f"脚本已恢复")
+#             pause = False
+#             pause_event.set()
+#         try:
+#             win32gui.SetForegroundWindow(hwnd)
+#         except Exception as ex:
+#             print(f"An error occurred: {ex}")
+
+#     def convert_hotkey_format(hotkey):
+#         """将热键格式转换为符合 keyboard 库的要求。"""
+#         # 定义键的映射关系
+#         key_mapping = {
+#             # 可以添加更多的键映射
+#             'alt': '<alt>',
+#             'ctrl': '<ctrl>',
+#             'shift': '<shift>',
+#             'win': '<win>',
+#             'space': '<space>',
+#             'home': '<home>',
+#             'end': '<end>',
+#             'up': '<up>',
+#             'down': '<down>',
+#             'left': '<left>',
+#             'right': '<right>',
+#             'f1': '<f1>',
+#             'f2': '<f2>',
+#             'f3': '<f3>',
+#             'f4': '<f4>',
+#             'f5': '<f5>',
+#             'f6': '<f6>',
+#             'f7': '<f7>',
+#             'f8': '<f8>',
+#             'f9': '<f9>',
+#             'f10': '<f10>',
+#             'f11': '<f11>',
+#             'f12': '<f12>',
+#             'enter': '<enter>',
+#             'tab': '<tab>',
+#             'backspace': '<backspace>',
+#             'delete': '<delete>',
+#             'pageup': '<pageup>',
+#             'pagedown': '<pagedown>',
+#             'insert': '<insert>',
+#             'pause': '<pause>',
+#             'capslock': '<capslock>',
+#             'numlock': '<numlock>',
+#             'printscreen': '<printscreen>',
+#             'esc': '<esc>',
+#         }
+        
+#         # 使用正则表达式匹配并替换键
+#         pattern = r'\b(' + '|'.join(re.escape(key) for key in key_mapping.keys()) + r')\b'
+#         converted_hotkey = re.sub(pattern, lambda x: key_mapping[x.group()], hotkey)
+        
+#         return converted_hotkey
+
+#     def convert_selected_hotkeys(args):
+#         """仅转换指定的热键格式。"""
+#         keys_to_convert = ['开始快捷键', '暂停快捷键', '停止快捷键']
+#         for key in keys_to_convert:
+#             if key in args and isinstance(args[key], list) and args[key]:
+#                 # 转换热键
+#                 args[key][0] = convert_hotkey_format(args[key][0])
+#         return args
+
+#     try:
+#         formatted_hotkey = convert_selected_hotkeys(self_defined_args)
+#         # 注册热键
+#         hotkeys = {
+#         formatted_hotkey['开始快捷键'][0]: begin,
+#         formatted_hotkey['暂停快捷键'][0]: pause,
+#         formatted_hotkey['停止快捷键'][0]: kill
+#     }
+
+#         # 创建全局热键监听器
+#         with keyboard.GlobalHotKeys(hotkeys) as listener:
+#             listener.join()
+#     except Exception as e:
+#         print(f"无效的热键: {e}")
 
 
 def ocr_range_inspection(identification_key: str,
@@ -3029,6 +3281,7 @@ if __name__ == '__main__':
     manager = NotificationManager()
     custom_command = ActionExecutor(CUSTOM_COMMAND_PATH, hwnd)
     log_view = LogView(LOG_PATH)
+    hotkey_listener = HotkeyListener()
 
     if QLocale.system().language() != QLocale.Chinese or cfg.getboolean("UPDATE", "rb_english"):
         dbdWindowUi.rb_english_change()
@@ -3048,16 +3301,15 @@ if __name__ == '__main__':
     event.set()
     pause_event = threading.Event()
     pause_event.set()
-    hotkey = threading.Thread(target=listen_key, daemon=True)
     tip = threading.Thread(target=hall_tip, daemon=True)
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
 
     splash.show_message("正在检查通知...")
-    notice('test gix')  # 通知消息
+    notice('test git')  # 通知消息
 
     splash.show_message("正在验证授权...")
     authorization('~x&amp;mBGbIneqSS(')  # 授权验证
-    hotkey.start()  # 热键监听
+    hotkey_listener.start()   # 热键监听
 
     splash.show_message("正在检查环境...")
     check_ocr()  # 检查初始化
