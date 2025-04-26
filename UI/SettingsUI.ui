@@ -94,7 +94,7 @@
           <string>编写动作</string>
          </property>
          <property name="icon">
-          <iconset resource="../pictures.qrc">
+          <iconset>
            <normaloff>:/customcommand/picture/create.gif</normaloff>:/customcommand/picture/create.gif</iconset>
          </property>
          <property name="iconSize">
@@ -120,7 +120,7 @@
           <string>显示日志</string>
          </property>
          <property name="icon">
-          <iconset resource="../pictures.qrc">
+          <iconset>
            <normaloff>:/log/picture/paper.gif</normaloff>:/log/picture/paper.gif</iconset>
          </property>
          <property name="iconSize">
@@ -152,7 +152,7 @@
           <string>高级选项</string>
          </property>
          <property name="icon">
-          <iconset resource="../pictures.qrc">
+          <iconset>
            <normaloff>:/advanced/picture/gears.gif</normaloff>:/advanced/picture/gears.gif</iconset>
          </property>
          <property name="iconSize">
@@ -184,7 +184,7 @@
           <string>调试工具</string>
          </property>
          <property name="icon">
-          <iconset resource="../pictures.qrc">
+          <iconset>
            <normaloff>:/debug/picture/tool.gif</normaloff>:/debug/picture/tool.gif</iconset>
          </property>
          <property name="iconSize">
@@ -222,7 +222,7 @@
           <string>坐标转换</string>
          </property>
          <property name="icon">
-          <iconset resource="../pictures.qrc">
+          <iconset>
            <normaloff>:/setting/picture/refresh.gif</normaloff>:/setting/picture/refresh.gif</iconset>
          </property>
          <property name="iconSize">
@@ -248,7 +248,7 @@
           <string>崩溃报告</string>
          </property>
          <property name="icon">
-          <iconset resource="../pictures.qrc">
+          <iconset>
            <normaloff>:/setting/picture/crash.gif</normaloff>:/setting/picture/crash.gif</iconset>
          </property>
          <property name="iconSize">
@@ -337,7 +337,7 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset resource="../pictures.qrc">
+             <iconset>
               <normaloff>:/setting/picture/comments.gif</normaloff>:/setting/picture/comments.gif</iconset>
             </property>
             <property name="iconSize">
@@ -385,7 +385,7 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset resource="../pictures.qrc">
+             <iconset>
               <normaloff>:/setting/picture/document.gif</normaloff>:/setting/picture/document.gif</iconset>
             </property>
             <property name="iconSize">
@@ -437,7 +437,7 @@
 }</string>
             </property>
             <property name="text">
-             <string>     v2.8.2</string>
+             <string>     v2.8.3</string>
             </property>
            </widget>
           </item>

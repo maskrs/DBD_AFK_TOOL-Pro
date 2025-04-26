@@ -655,14 +655,11 @@ class Ui_AdvancedWindow(object):
     def retranslateUi(self, AdvancedWindow):
         _translate = QtCore.QCoreApplication.translate
         AdvancedWindow.setWindowTitle(_translate("AdvancedWindow", "高级选项"))
-        self.lb_pause_key.setText(_translate("AdvancedWindow", "暂停快捷键\n"
-"(重启生效)"))
+        self.lb_pause_key.setText(_translate("AdvancedWindow", "暂停快捷键"))
         self.lb_human_message.setText(_translate("AdvancedWindow", "人类发送消息"))
         self.lb_killer_message.setText(_translate("AdvancedWindow", "赛后发送消息"))
-        self.lb_start_key.setText(_translate("AdvancedWindow", "开始快捷键\n"
-"(重启生效)"))
-        self.lb_stop_key.setText(_translate("AdvancedWindow", "停止快捷键\n"
-"(重启生效)"))
+        self.lb_start_key.setText(_translate("AdvancedWindow", "开始快捷键"))
+        self.lb_stop_key.setText(_translate("AdvancedWindow", "停止快捷键"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tb_prode), _translate("AdvancedWindow", "自定义配置"))
         self.lb_skill_allocation.setText(_translate("AdvancedWindow", "装备配置按钮坐标"))
         self.lb_firstx.setText(_translate("AdvancedWindow", "第一个角色坐标"))
