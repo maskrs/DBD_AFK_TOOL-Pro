@@ -1865,6 +1865,9 @@ def check_update(ver_now: str):
         confirm = win32api.MessageBox(0, message, title, win32con.MB_YESNO | win32con.MB_ICONQUESTION)
         if eq(confirm, 6):  # 打开
             # webbrowser.open("https://pd.qq.com/s/942n1n6dc")
+            if (BASE_DIR.startswith("C:") or BASE_DIR.startswith("c:")):
+                win32api.MessageBox(0, "权限不足！请手动以管理员身份运行update.exe!", "提示", win32con.MB_OK | win32con.MB_ICONWARNING)
+                sys.exit()
             subprocess.call("update.exe")
             sys.exit()
 
@@ -3404,7 +3407,7 @@ if __name__ == '__main__':
 
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
-        check_update('V2.8.2')
+        check_update('V2.8.3')
     
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()
