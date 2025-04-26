@@ -268,7 +268,7 @@ class Ui_SettingDialog(object):
         self.pb_help.setToolTip(_translate("SettingDialog", "<html><head/><body><p><span style=\" font-family:\'宋体\';\">工具的帮助教程</span></p></body></html>"))
         self.lb_doc.setText(_translate("SettingDialog", "说明文档："))
         self.label_2.setText(_translate("SettingDialog", "软件版本："))
-        self.lb_version.setText(_translate("SettingDialog", "     v2.8.2"))
+        self.lb_version.setText(_translate("SettingDialog", "     v2.8.3"))
         self.label.setText(_translate("SettingDialog", "<html><head/><body><p><span style=\" font-size:10pt;\">Copyright </span><span style=\" font-size:16pt;\">© </span><span style=\" font-size:10pt;\">2024 WKhistory&amp;MasKrs, Inc. All rights reserved.</span></p><p><span style=\" font-size:7pt;\">Icons by </span><a href=\"https://icons8.com\"><span style=\" font-size:7pt; text-decoration: underline; color:#0000ff;\">Icons8</span></a></p></body></html>"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("SettingDialog", "关于"))
 import pictures_rc

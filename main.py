@@ -8,6 +8,7 @@ import functools
 import json
 import os.path
 import random
+import string
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ import pyperclip
 import pytesseract
 import re
 import requests
+import win32process
 import win32api
 import win32con
 import win32gui
@@ -73,7 +75,17 @@ class DbdWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.trans = QTranslator()
         self.setupUi(self)
+        # 设置随机窗口标题和类名
+        self.window_title = generate_random_name()
+        self.setWindowTitle(self.window_title)
+
         self.setWindowIcon(QIcon(":mainwindow/picture/dbdwindow.png"))
+
+        # 启动定时更新窗口标题的线程
+        self.title_update_timer = QTimer(self)
+        self.title_update_timer.timeout.connect(self.update_window_title)
+        # 随机间隔2-5分钟更新一次
+        self.title_update_timer.start(random.randint(120000, 300000))
 
         self.initUI()
         self.init_signals()
@@ -93,6 +105,23 @@ class DbdWindow(QMainWindow, Ui_MainWindow):
         self.rb_chinese.clicked.connect(self.rb_chinese_change)
         self.rb_english.clicked.connect(self.rb_english_change)
         self.cb_bvinit.clicked.connect(self.cb_bvinit_click)
+
+    def update_window_title(self):
+        """定期更新窗口标题"""
+        try:
+            # 生成新标题
+            new_title = generate_random_name()
+            # 确保新标题不同于当前标题
+            while new_title == self.window_title:
+                new_title = generate_random_name()
+            self.window_title = new_title
+            self.setWindowTitle(self.window_title)
+            
+            # 随机设置下次更新间隔
+            self.title_update_timer.setInterval(random.randint(120000, 300000))
+            
+        except Exception as e:
+            log.error(f"更新窗口标题失败: {e}")
 
     @staticmethod
     def pb_setting_click():
@@ -1462,55 +1491,55 @@ class LogView(QMainWindow):
         self.thread.start()
 
 
-class InputChinese:
-    def __init__(self):
-        self.user32 = ctypes.windll.user32
-        self.codes_list = []
+# class InputChinese:
+    # def __init__(self):
+    #     self.user32 = ctypes.windll.user32
+    #     self.codes_list = []
 
-    def vkey_to_scan_code(self, key_code):
-        return self.user32.MapVirtualKeyA(key_code, 0)
+    # def vkey_to_scan_code(self, key_code):
+    #     return self.user32.MapVirtualKeyA(key_code, 0)
 
-    def key_down(self, key_code, ext=False):
-        ext_flg = 1 if ext else 0
-        scan_code = self.vkey_to_scan_code(key_code)
-        self.user32.keybd_event(key_code, scan_code, 0, 0)
+    # def key_down(self, key_code, ext=False):
+    #     ext_flg = 1 if ext else 0
+    #     scan_code = self.vkey_to_scan_code(key_code)
+    #     self.user32.keybd_event(key_code, scan_code, 0, 0)
 
-    def key_up(self, key_code, ext=False):
-        ext_flg = 1 if ext else 0
-        scan_code = self.vkey_to_scan_code(key_code)
-        self.user32.keybd_event(key_code, scan_code, 2, 0)
+    # def key_up(self, key_code, ext=False):
+    #     ext_flg = 1 if ext else 0
+    #     scan_code = self.vkey_to_scan_code(key_code)
+    #     self.user32.keybd_event(key_code, scan_code, 2, 0)
 
-    def num_key_press(self, digit):
-        key_code = {
-            '0': 0x60, '1': 0x61, '2': 0x62, '3': 0x63,
-            '4': 0x64, '5': 0x65, '6': 0x66, '7': 0x67,
-            '8': 0x68, '9': 0x69, '+': 0x6B
-        }.get(digit)
+    # def num_key_press(self, digit):
+    #     key_code = {
+    #         '0': 0x60, '1': 0x61, '2': 0x62, '3': 0x63,
+    #         '4': 0x64, '5': 0x65, '6': 0x66, '7': 0x67,
+    #         '8': 0x68, '9': 0x69, '+': 0x6B
+    #     }.get(digit)
 
-        if key_code is None:
-            raise ValueError(f"Invalid digit: {digit}")
-        self.key_down(key_code)
-        self.key_up(key_code)
+    #     if key_code is None:
+    #         raise ValueError(f"Invalid digit: {digit}")
+    #     self.key_down(key_code)
+    #     self.key_up(key_code)
 
-    def type_alt_code(self, code):
-        try:
-            self.key_down(0xA4)  # 模拟Alt键按下
-            for digit in str(code):
-                self.num_key_press(digit)  # 模拟数字小键盘按键
-                time.sleep(0.001)  # 按键间隔
-        finally:
-            self.key_up(0xA4)  # 模拟Alt键释放
+    # def type_alt_code(self, code):
+    #     try:
+    #         self.key_down(0xA4)  # 模拟Alt键按下
+    #         for digit in str(code):
+    #             self.num_key_press(digit)  # 模拟数字小键盘按键
+    #             time.sleep(0.001)  # 按键间隔
+    #     finally:
+    #         self.key_up(0xA4)  # 模拟Alt键释放
 
-    def str_to_codes(self, string, encode):
-        for char in string:
-            char_bytes = char.encode(encode)
-            self.codes_list.append(int.from_bytes(char_bytes, 'big'))
+    # def str_to_codes(self, string, encode):
+    #     for char in string:
+    #         char_bytes = char.encode(encode)
+    #         self.codes_list.append(int.from_bytes(char_bytes, 'big'))
 
-    def press_codes_with_alt(self, string, encode):
-        self.str_to_codes(string, encode)
-        for code in self.codes_list:
-            self.type_alt_code(code)
-        self.codes_list.clear()
+    # def press_codes_with_alt(self, string, encode):
+    #     self.str_to_codes(string, encode)
+    #     for code in self.codes_list:
+    #         self.type_alt_code(code)
+    #     self.codes_list.clear()
 
 
 class GifButton(QObject):
@@ -1536,6 +1565,7 @@ class GifButton(QObject):
                 self.movie.stop()
                 self.button.setIcon(self.default_icon)
         return super().eventFilter(obj, event)
+
 
 
 class Stage:
@@ -1676,7 +1706,6 @@ def initialize():
         },
         "SEKI": {
             "usefile": False,
-            "search_fix": False,
             "autoselect": False,
             "rb_pz1": False,
             "rb_pz2": False,
@@ -1902,21 +1931,20 @@ def coordinate_transformation(original_x: int, original_y: Optional[int] = None)
     return new_x, new_y
 
 
-def is_edcs_only(content: str):
-    pattern = re.compile(r'^[A-Za-z0-9\s,.?!\"*/+\'()-]+$')
-    return bool(pattern.match(content))
+# def is_edcs_only(content: str):
+#     pattern = re.compile(r'^[A-Za-z0-9\s,.?!\"*/+\'()-]+$')
+#     return bool(pattern.match(content))
 
 
 def auto_message() -> None:
     """对局结束后的自动留言"""
     py.press('enter')
     input_str = self_defined_args['赛后发送消息']
-    if is_edcs_only(input_str):
-        py.typewrite(input_str)
-    else:
-        input_cn.press_codes_with_alt(input_str, 'gbk')
+    pyperclip.copy(input_str)
+    py.hotkey('ctrl', 'v')
+    time.sleep(0.1)
     py.press('enter')
-    time.sleep(0.5)
+    time.sleep(1)
 
 
 def hall_tip():
@@ -1930,11 +1958,9 @@ def hall_tip():
                 py.hotkey('ctrl', 'a')
                 py.press('delete')
                 input_str = self_defined_args['人类发送消息']
-                if is_edcs_only(input_str):
-                    py.typewrite(input_str)
-                else:
-                    input_cn = InputChinese()
-                    input_cn.press_codes_with_alt(input_str, 'gbk')
+                pyperclip.copy(input_str)
+                py.hotkey('ctrl', 'v')
+                time.sleep(0.1)
                 py.press('enter')
                 time.sleep(15)
 
@@ -2749,14 +2775,9 @@ def character_selection() -> None:
         return
     if not pause_event.is_set():
         pause_event.wait()
-    if cfg.getboolean("SEKI", "search_fix"):
-        pyperclip.copy(input_str)
-        py.hotkey('ctrl', 'v')
-    else:
-        if is_edcs_only(input_str):
-            py.typewrite(input_str)
-        else:
-            input_cn.press_codes_with_alt(input_str, 'gbk')
+    pyperclip.copy(input_str)
+    py.hotkey('ctrl', 'v')
+    time.sleep(0.1)
 
     MControl.moveclick(self_defined_args['第一个角色坐标'][0], self_defined_args['第一个角色坐标'][1], 1, times=2,
                        interval=1)
@@ -2773,7 +2794,7 @@ def start_check() -> bool:
     """启动脚本前的检查"""
 
     global hwnd, MControl
-    hwnd = win32gui.FindWindow(None, u"DeadByDaylight  ")
+    hwnd = find_game_window()
     MControl = MouseController(hwnd)
     if cfg.getboolean("UPDATE", "rb_chinese"):
         custom_select.select_killer_name_cn()
@@ -2996,7 +3017,9 @@ def afk() -> None:
                 MControl.moveclick(10, 10, 1, 1)
                 # 删除动作线程的输入字符
                 py.press('enter')
+                time.sleep(0.5)
                 py.hotkey('ctrl', 'a')
+                time.sleep(0.5)
                 py.press('delete')
                 # 判断是否开启留言
                 if (cfg.getboolean("CPCI", "cb_killer_do")
@@ -3033,6 +3056,47 @@ def afk() -> None:
             custom_select.select_killer_lst.clear()
             return
 
+def generate_random_name():
+    """生成更自然的应用程序名称"""
+    common_names = [
+        "Updater", "Service", "Helper", "Assistant", "Monitor", "Controller",
+        "Manager", "Config", "Sync", "Bridge", "Runtime", "Framework"
+    ]
+    company_names = [
+        "System", "Windows", "Microsoft", "Desktop", "User", "Client",
+        "Local", "Remote", "Network", "Security", "Platform", "Utils"
+    ]
+    
+    # 随机决定是否添加版本号
+    version = f" {random.randint(1,4)}.{random.randint(0,9)}" if random.random() > 0.7 else ""
+    
+    # 生成类似 "Windows Network Assistant 2.1" 的名称
+    name = f"{random.choice(company_names)} {random.choice(common_names)}{version}"
+    return name
+
+def find_game_window():
+    """查找游戏窗口"""
+    def callback(hwnd, hwnds):
+        if win32gui.IsWindowVisible(hwnd):
+            title = win32gui.GetWindowText(hwnd)
+            if "DeadByDaylight" in title:
+                hwnds.append(hwnd)
+        return True
+    
+    hwnds = []
+    win32gui.EnumWindows(callback, hwnds)
+    return hwnds[0] if hwnds else 0
+
+def anti_debug():
+    # 检测常见调试器
+    if ctypes.windll.kernel32.IsDebuggerPresent():
+        sys.exit()
+    # 检测虚拟机环境
+    try:
+        ctypes.windll.LoadLibrary("SbieDll.dll")
+        sys.exit()
+    except:
+        pass
 
 def resource_path(relative_path):
     try:
@@ -3089,6 +3153,7 @@ def global_exception(exctype, value, traceback):
 
 
 if __name__ == '__main__':
+    anti_debug()  # 反调试
     BASE_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
 
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -3116,7 +3181,7 @@ if __name__ == '__main__':
     os.environ['TESSDATA_PREFIX'] = TESSDATA_PREFIX
     os.environ['NO_PROXY'] = 'gitee.com'
 
-    hwnd = win32gui.FindWindow(None, u"DeadByDaylight  ")
+    hwnd = find_game_window()
     py.FAILSAFE = False
 
     # 自定义参数
@@ -3200,7 +3265,6 @@ if __name__ == '__main__':
 
     seki_keys = [
         "usefile",
-        "search_fix",
         "autoselect",
         "rb_pz1",
         "rb_pz2",
@@ -3276,7 +3340,7 @@ if __name__ == '__main__':
     sys.excepthook = global_exception  # 全局未捕获异常捕获
 
     # 实例声明
-    input_cn = InputChinese()
+    program_state = ProgramState()
     MControl = MouseController(hwnd)
     manager = NotificationManager()
     custom_command = ActionExecutor(CUSTOM_COMMAND_PATH, hwnd)
@@ -3305,7 +3369,7 @@ if __name__ == '__main__':
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
 
     splash.show_message("正在检查通知...")
-    notice('test git')  # 通知消息
+    notice('test gix')  # 通知消息
 
     splash.show_message("正在验证授权...")
     authorization('~x&amp;mBGbIneqSS(')  # 授权验证
