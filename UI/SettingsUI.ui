@@ -94,7 +94,7 @@
           <string>编写动作</string>
          </property>
          <property name="icon">
-          <iconset>
+          <iconset resource="../pictures.qrc">
            <normaloff>:/customcommand/picture/create.gif</normaloff>:/customcommand/picture/create.gif</iconset>
          </property>
          <property name="iconSize">
@@ -120,7 +120,7 @@
           <string>显示日志</string>
          </property>
          <property name="icon">
-          <iconset>
+          <iconset resource="../pictures.qrc">
            <normaloff>:/log/picture/paper.gif</normaloff>:/log/picture/paper.gif</iconset>
          </property>
          <property name="iconSize">
@@ -152,7 +152,7 @@
           <string>高级选项</string>
          </property>
          <property name="icon">
-          <iconset>
+          <iconset resource="../pictures.qrc">
            <normaloff>:/advanced/picture/gears.gif</normaloff>:/advanced/picture/gears.gif</iconset>
          </property>
          <property name="iconSize">
@@ -184,7 +184,7 @@
           <string>调试工具</string>
          </property>
          <property name="icon">
-          <iconset>
+          <iconset resource="../pictures.qrc">
            <normaloff>:/debug/picture/tool.gif</normaloff>:/debug/picture/tool.gif</iconset>
          </property>
          <property name="iconSize">
@@ -222,7 +222,7 @@
           <string>坐标转换</string>
          </property>
          <property name="icon">
-          <iconset>
+          <iconset resource="../pictures.qrc">
            <normaloff>:/setting/picture/refresh.gif</normaloff>:/setting/picture/refresh.gif</iconset>
          </property>
          <property name="iconSize">
@@ -248,7 +248,7 @@
           <string>崩溃报告</string>
          </property>
          <property name="icon">
-          <iconset>
+          <iconset resource="../pictures.qrc">
            <normaloff>:/setting/picture/crash.gif</normaloff>:/setting/picture/crash.gif</iconset>
          </property>
          <property name="iconSize">
@@ -337,7 +337,7 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="../pictures.qrc">
               <normaloff>:/setting/picture/comments.gif</normaloff>:/setting/picture/comments.gif</iconset>
             </property>
             <property name="iconSize">
@@ -385,7 +385,7 @@
              <string/>
             </property>
             <property name="icon">
-             <iconset>
+             <iconset resource="../pictures.qrc">
               <normaloff>:/setting/picture/document.gif</normaloff>:/setting/picture/document.gif</iconset>
             </property>
             <property name="iconSize">
@@ -486,7 +486,7 @@
              <enum>QFrame::Raised</enum>
             </property>
             <property name="text">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Copyright &lt;/span&gt;&lt;span style=&quot; font-size:16pt;&quot;&gt;© &lt;/span&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;2024 WKhistory&amp;amp;MasKrs, Inc. All rights reserved.&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-size:7pt;&quot;&gt;Icons by &lt;/span&gt;&lt;a href=&quot;https://icons8.com&quot;&gt;&lt;span style=&quot; font-size:7pt; text-decoration: underline; color:#0000ff;&quot;&gt;Icons8&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:6pt; font-weight:600;&quot;&gt;免责声明&lt;/span&gt;&lt;/p&gt;&lt;p align=&quot;center&quot;&gt;&lt;span style=&quot; font-size:7pt;&quot;&gt;本工具仅限学习交流使用，应在获取软件的24小时内删除。挂机行为存在被ban风险，使用本工具，风险自负，任何后果与本工具无关。&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-size:7pt;&quot;&gt;Icons by &lt;/span&gt;&lt;a href=&quot;https://icons8.com&quot;&gt;&lt;span style=&quot; font-size:7pt; text-decoration: underline; color:#0000ff;&quot;&gt;Icons8&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="scaledContents">
              <bool>false</bool>
