@@ -878,7 +878,7 @@ class HotkeyListener:
             # 定义热键映射
             hotkey_actions = {
                 '开始快捷键': begin,
-                '暂停快捷键': pause,
+                '暂停快捷键': pause_game,
                 '停止快捷键': kill
             }
             
@@ -1668,6 +1668,31 @@ def begin():
     else:
         pass
 
+def pause_game():
+        global pause
+
+        if not pause:
+            try:
+                # 播放WAV文件
+                play_pau.play()
+            except SimpleaudioError:
+                pass
+            log.info(f"脚本已暂停")
+            pause = True
+            pause_event.clear()
+        elif pause:
+            try:
+                # 播放WAV文件
+                play_res.play()
+            except SimpleaudioError:
+                pass
+            log.info(f"脚本已恢复")
+            pause = False
+            pause_event.set()
+        try:
+            win32gui.SetForegroundWindow(hwnd)
+        except Exception as ex:
+            print(f"An error occurred: {ex}")
 
 def kill():
     """stop the script"""
@@ -3340,7 +3365,6 @@ if __name__ == '__main__':
     sys.excepthook = global_exception  # 全局未捕获异常捕获
 
     # 实例声明
-    program_state = ProgramState()
     MControl = MouseController(hwnd)
     manager = NotificationManager()
     custom_command = ActionExecutor(CUSTOM_COMMAND_PATH, hwnd)
