@@ -2,19 +2,31 @@
 
 import random
 import time
+import logging
 from Utils.background_operation import key_down, key_up, mouse_down, mouse_up
+from Utils.key_state_tracker import press_key as track_press_key, release_key as track_release_key
+from Utils.key_state_tracker import press_mouse as track_press_mouse, release_mouse as track_release_mouse
+
+# 创建日志记录器
+log = logging.getLogger(__name__)
 
 
 def press_key(key) -> None:
     """按下按键
     :param key: 按键"""
     key_down(key)
+    # 跟踪按键状态
+    track_press_key(key)
+    log.debug(f"按下按键: {key}")
 
 
 def release_key(key) -> None:
     """释放按键
     :param key: 按键"""
     key_up(key)
+    # 跟踪按键状态
+    track_release_key(key)
+    log.debug(f"释放按键: {key}")
 
 
 def press_mouse(mouse_button='左键') -> None:
@@ -23,11 +35,20 @@ def press_mouse(mouse_button='左键') -> None:
     button = ''
     if mouse_button == '左键' or mouse_button == 'left':
         button = 'mouse_left'
+        track_button = 'left'
     elif mouse_button == '右键' or mouse_button == 'right':
         button = 'mouse_right'
+        track_button = 'right'
     elif mouse_button == '中键' or mouse_button == 'middle':
         button = "mouse_middle"
+        track_button = 'middle'
+    else:
+        track_button = mouse_button
+
     mouse_down(button)
+    # 跟踪鼠标状态
+    track_press_mouse(track_button)
+    log.debug(f"按下鼠标: {track_button}")
 
 
 def release_mouse(mouse_button='左键') -> None:
@@ -36,11 +57,20 @@ def release_mouse(mouse_button='左键') -> None:
     button = ''
     if mouse_button == '左键' or mouse_button == 'left':
         button = 'mouse_left'
+        track_button = 'left'
     elif mouse_button == '右键' or mouse_button == 'right':
         button = 'mouse_right'
+        track_button = 'right'
     elif mouse_button == '中键' or mouse_button == 'middle':
         button = "mouse_middle"
+        track_button = 'middle'
+    else:
+        track_button = mouse_button
+
     mouse_up(button)
+    # 跟踪鼠标状态
+    track_release_mouse(track_button)
+    log.debug(f"释放鼠标: {track_button}")
 
 
 def delay(seconds) -> None:

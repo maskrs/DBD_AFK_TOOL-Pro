@@ -13,20 +13,20 @@ logger = logging.getLogger(__name__)
 
 class MainWindow(QMainWindow):
     """主窗口"""
-    
+
     def __init__(self):
         super().__init__()
         self.setObjectName("MainWindow")
-        
+
         # 初始化主题管理器
         self.theme_manager = ThemeManager()
-        
+
         # 设置窗口属性
         self._setup_window()
-        
+
         # 创建UI
         self._setup_ui()
-        
+
         # 设置主题
         self.theme_manager.setWindow(self)
 
@@ -44,25 +44,25 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.theme_manager = self.theme_manager
         self.setCentralWidget(central_widget)
-        
+
         # 创建主布局
         layout = QHBoxLayout(central_widget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        
+
         # 创建导航栏和页面堆栈
         self.nav_bar = NavBar(self)
         self.nav_bar.theme_manager = self.theme_manager
         self.page_stack = AnimatedStackedWidget()
-        
+
         layout.addWidget(self.nav_bar)
         layout.addWidget(self.page_stack)
         layout.setStretch(0, 0)
         layout.setStretch(1, 1)
-        
+
         # 创建页面
         self._setup_pages()
-        
+
         # 连接信号
         self.nav_bar.pageChanged.connect(self._on_page_changed)
 
@@ -72,11 +72,11 @@ class MainWindow(QMainWindow):
         home_page = HomePage(self.theme_manager)
         self.page_stack.addWidget(home_page)
         self.nav_bar.addPage("home", "主页", "home")
-        
-        # 设置页面
-        settings_page = SettingsPage(self.theme_manager)
+
+        # 高级设置页面
+        settings_page = SettingsPage(theme_manager=self.theme_manager, parent=self)
         self.page_stack.addWidget(settings_page)
-        self.nav_bar.addPage("setting", "设置", "settings")
+        self.nav_bar.addPage("setting", "高级设置", "settings")
 
     def _on_page_changed(self, page_id: str):
         """页面切换处理"""

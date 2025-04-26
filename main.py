@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import multiprocessing as mp
 import time
 import webbrowser
 import pyautogui as py
@@ -33,8 +34,9 @@ from simpleaudio._simpleaudio import SimpleaudioError
 from simpleaudio import WaveObject
 from configparser import ConfigParser
 from operator import eq, gt, ge, ne
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QTranslator, QLocale, Qt, QCoreApplication, QThread, pyqtSignal, QRegExp, QEvent, \
-    pyqtSlot, QObject
+    pyqtSlot, QObject, QTimer
 from PyQt5.QtGui import QIcon, QPalette, QSyntaxHighlighter, QTextCharFormat, QFont, QColor, QMovie, QPixmap
 from PyQt5.QtWidgets import *
 from typing import Callable, Optional
@@ -49,7 +51,7 @@ from UI.CustomCommandUI import Ui_CustomCommand
 from UI.AutoComplete import CodeTextEdit
 from UI.SettingsUI import Ui_SettingDialog
 from UI.CrashReportUI import Ui_CrashReportDialog
-from UI.Notification import NotificationManager
+from UI.components.pyqt_notification import NotificationManager
 
 from Utils.GameOperate import (press_key, release_key, press_mouse, release_mouse, random_direction, random_movement, random_move, random_veer, killer_ctrl,
                                killer_skill, killer_skillclick)
@@ -62,10 +64,10 @@ class CustomSplashScreen(QSplashScreen):
         super().__init__(pixmap)
         self.font = QFont("Segoe UI", 15, QFont.Bold)  # 设置字体为 Segoe UI，大小为 14，粗体
         self.setFont(self.font)
-        
+
     def show_message(self, message):
         super().showMessage(message, Qt.AlignCenter | Qt.AlignBottom, QColor("#c92ae2"))
-        
+
 
 class DbdWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -78,6 +80,7 @@ class DbdWindow(QMainWindow, Ui_MainWindow):
         self.init_signals()
 
     def initUI(self):
+        # 创建GIF按钮
         self.start_gif = GifButton(self.pb_start, ':start/picture/circled-play.gif')
         self.stop_gif = GifButton(self.pb_stop, ':stop/picture/shutdown.gif')
         self.setting_gif = GifButton(self.pb_setting, ':setting/picture/settings.gif')
@@ -92,6 +95,92 @@ class DbdWindow(QMainWindow, Ui_MainWindow):
         self.rb_chinese.clicked.connect(self.rb_chinese_change)
         self.rb_english.clicked.connect(self.rb_english_change)
         self.cb_bvinit.clicked.connect(self.cb_bvinit_click)
+
+    @staticmethod
+    def pb_pause_click():
+        """暂停按钮点击处理"""
+        # 调用listen_key中的pause函数
+        from Utils.process_control import suspend_process, resume_process, safe_suspend_process, is_process_suspended
+        global pause
+
+        if begin_state:
+            # 获取进程对象
+            afk_process = shared_state.get('afk_process')
+            hall_tip_process = shared_state.get('hall_tip_process')
+
+            if not pause:
+                # 暂停 - 挂起进程
+                try:
+                    play_pau.play()
+                except SimpleaudioError:
+                    pass
+
+                log.info("脚本已暂停 - 使用进程挂起")
+                pause = True
+                shared_state['pause'] = True
+
+                # 不再需要设置暂停事件，使用进程挂起/恢复功能
+
+                # 安全地挂起进程
+                if afk_process:
+                    if safe_suspend_process(afk_process, cmd_queue):
+                        log.debug("AFk主进程已挂起")
+                    else:
+                        log.warning("AFk主进程挂起失败")
+
+                if hall_tip_process:
+                    if safe_suspend_process(hall_tip_process, cmd_queue):
+                        log.debug("大厅提示进程已挂起")
+                    else:
+                        log.warning("大厅提示进程挂起失败")
+
+                Notification.showMessage("脚本已暂停", 'info')
+            else:
+                # 恢复 - 恢复进程
+                try:
+                    play_res.play()
+                except SimpleaudioError:
+                    pass
+
+                log.info("脚本已恢复 - 使用进程恢复")
+                pause = False
+                shared_state['pause'] = False
+
+                # 不再需要设置暂停事件，使用进程挂起/恢复功能
+
+                # 恢复进程
+                if afk_process:
+                    if is_process_suspended(afk_process):
+                        # 先发送恢复信号，让进程准备恢复按键状态
+                        cmd_queue.put(("RESUME_PROCESS", None), block=False)
+                        # 给进程一点时间来处理信号
+                        time.sleep(0.1)
+
+                        # 恢复进程
+                        if resume_process(afk_process):
+                            log.debug("AFk主进程已恢复")
+                        else:
+                            log.warning("AFk主进程恢复失败")
+
+                if hall_tip_process:
+                    if is_process_suspended(hall_tip_process):
+                        # 先发送恢复信号，让进程准备恢复按键状态
+                        cmd_queue.put(("RESUME_PROCESS", None), block=False)
+                        # 给进程一点时间来处理信号
+                        time.sleep(0.1)
+
+                        # 恢复进程
+                        if resume_process(hall_tip_process):
+                            log.debug("大厅提示进程已恢复")
+                        else:
+                            log.warning("大厅提示进程恢复失败")
+
+                Notification.showMessage("脚本已恢复", 'info')
+
+        try:
+            win32gui.SetForegroundWindow(hwnd)
+        except Exception as ex:
+            log.warning(f"设置窗口前台失败: {ex}")
 
     @staticmethod
     def pb_setting_click():
@@ -153,7 +242,7 @@ class DbdWindow(QMainWindow, Ui_MainWindow):
 
     def closeEvent(self, event):
         # 在主窗口关闭时关闭所有通知
-        manager.closeAllNotifications()
+        Notification.shutdown()
         event.accept()
 
 
@@ -210,7 +299,7 @@ class SelectWindow(QDialog, Ui_Dialog):
 
     @staticmethod
     def pb_save_click():
-        manager.sMessageBox('已保存配置！', 'info')
+        Notification.showMessage('已保存配置！', 'success')
         save_cfg()
 
 
@@ -415,17 +504,17 @@ class CustomCommand(QWidget, Ui_CustomCommand):
         save_cfg()
         with open(CUSTOM_COMMAND_PATH, 'w', encoding='utf-8') as f:
             f.write(self.pe_edit.toPlainText())
-        manager.sMessageBox("保存成功！", 'info')
+        Notification.showMessage("保存成功！", 'success')
 
     def pb_test_click(self):
         """测试自定义动作"""
         test_killer_name = None if self.le_test.text() == '' else self.le_test.text()
         if hwnd == 0:
-            manager.sMessageBox('未检测到游戏窗口', 'error')
+            Notification.showMessage('未检测到游戏窗口', 'error')
             return
         win32gui.SetForegroundWindow(hwnd)
         custom_command.execute_action_sequence(test_killer_name)
-        manager.sMessageBox('测试结束！', 'info')
+        Notification.showMessage('测试结束！', 'info')
 
 
 class AdvancedParameter(QDialog, Ui_AdvancedWindow):
@@ -625,7 +714,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         # 重置为初始值
         with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
             json.dump(self_defined_args_original, f, indent=4, ensure_ascii=False)
-        manager.sMessageBox("重置成功！", 'info')
+        Notification.showMessage("重置成功！", 'success')
         self.load_settings()
 
     def pb_save_click(self):
@@ -634,7 +723,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
             json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
         self.retranslateUi(self)
-        manager.sMessageBox("保存成功！", 'info')
+        Notification.showMessage("保存成功！", 'success')
         self.content_changed = False
 
     def update_settings(self):
@@ -659,7 +748,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                 # 更新 self_defined_args 字典
                 self_defined_args[setting_key] = settings_value
                 # print(f'获取更改后的值：{self_defined_args}')
-    
+
     def on_content_change(self):
         self.content_changed = True
 
@@ -669,13 +758,13 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         try:
             offset_x, offset_y = self_defined_args['断线确认偏移量']
         except ValueError:
-            manager.sMessageBox("偏移量格式错误！", "error", 5000)
+            Notification.showMessage("偏移量格式错误！", "error", 5000)
             return
         if offset_x >= -50 and offset_y >= -50 and offset_x < 50 and offset_y < 50:
             disconnect_confirm()
         else:
-            manager.sMessageBox("偏移量范围为-50~50！", "error", 5000)
-    
+            Notification.showMessage("偏移量范围为-50~50！", "error", 5000)
+
     def closeEvent(self, event):
         if self.content_changed == True:
             reply = QMessageBox.question(self, '提示', '是否保存更改？', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -707,20 +796,20 @@ class Custom_select(QWidget, Ui_Custom_select):
         try:
             with open(CUSTOM_KILLER_PATH, 'w', encoding="utf-8") as f:
                 f.write(self.pt_search.toPlainText())
-            manager.sMessageBox("已保存配置！", 'info')
+            Notification.showMessage("已保存配置！", 'success')
         except FileNotFoundError:
-            manager.sMessageBox(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
+            Notification.showMessage(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
         except Exception as e:
-            manager.sMessageBox(f"保存文件时出错:{e}", "error")
+            Notification.showMessage(f"保存文件时出错:{e}", "error")
 
     def loading_settings(self):
         try:
             with open(CUSTOM_KILLER_PATH, 'r', encoding="utf-8") as f:
                 self.pt_search.setPlainText(f.read())
         except FileNotFoundError:
-            manager.sMessageBox(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
+            Notification.showMessage(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
         except Exception as e:
-            manager.sMessageBox(f"读取文件时出错:{e}", "error")
+            Notification.showMessage(f"读取文件时出错:{e}", "error")
 
 
 class Settings(QDialog, Ui_SettingDialog):
@@ -802,7 +891,7 @@ class Settings(QDialog, Ui_SettingDialog):
             else:
                 message = (f"The current screen resolution is {screen_width}*{screen_height},\n"
                            f" and the zoom is {int(zoom_factor * 100)}%. No coordinate transf-\normation is required.")
-            manager.sMessageBox(message, 'info')
+            Notification.showMessage(message, 'info')
             return
         else:
             if lang == "chinese":
@@ -817,7 +906,7 @@ class Settings(QDialog, Ui_SettingDialog):
 
         if eq(confirm, 6):  # 点击确认
             if self_defined_args['坐标转换开关'] == 1:
-                manager.sMessageBox("你已进行过坐标转换，请勿重复进行！", 'error')
+                Notification.showMessage("你已进行过坐标转换，请勿重复进行！", 'warning')
                 return
             self_defined_args['坐标转换开关'] = 1
             # 找到包含"坐标"和"识别范围"的键
@@ -853,7 +942,7 @@ class Settings(QDialog, Ui_SettingDialog):
                 json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
 
             message = "坐标转换已完成！" if lang == "chinese" else "Coordinate transformation is complete!"
-            manager.sMessageBox(message, 'info')
+            Notification.showMessage(message, 'success')
 
     @staticmethod
     def pb_crashreport_click():
@@ -873,9 +962,9 @@ class ShowLog(QDialog, Ui_ShowLogDialog):
                 self.te_showlog.setPlainText(f.read())
                 print(f.read())
         except FileNotFoundError:
-            manager.sMessageBox("\"debug_data.log\"文件不存在！", "error")
+            Notification.showMessage("\"debug_data.log\"文件不存在！", "error")
         except Exception as e:
-            manager.sMessageBox(f"读取文件时出错:{e}", "error")
+            Notification.showMessage(f"读取文件时出错:{e}", "error")
 
 
 class DebugTool(QDialog, Ui_DebugDialog):
@@ -904,11 +993,11 @@ class DebugTool(QDialog, Ui_DebugDialog):
     def pb_test_click(self):
         # 获取坐标和关键字
         if hwnd == 0:
-            manager.sMessageBox('游戏未启动！', 'error')
+            Notification.showMessage('游戏未启动！', 'error')
             return
         coord_xy = self.le_coord.text()
         if not coord_xy:
-            manager.sMessageBox("请先框选区域！", 'warning')
+            Notification.showMessage("请先框选区域！", 'warning')
             return
         else:
             coordinates = [int(coord) for coord in coord_xy.split(",")]
@@ -917,7 +1006,7 @@ class DebugTool(QDialog, Ui_DebugDialog):
         key_words = self.le_keywords.text().split(",")
         # print(key_words)
         if not key_words or all(not item.strip() for item in key_words):
-            manager.sMessageBox("请输入关键字！", 'warning')
+            Notification.showMessage("请输入关键字！", 'warning')
             return
 
         self.pe_result.clear()
@@ -941,7 +1030,7 @@ class DebugTool(QDialog, Ui_DebugDialog):
             # 处理事件队列
             QCoreApplication.processEvents()
         self.pe_result.appendPlainText(f"- - - - - - - - -\n测试完成！")
-        manager.sMessageBox('测试完成！', 'info')
+        Notification.showMessage('测试完成！', 'info')
         self.pb_test.setEnabled(True)
         self.pb_selection_region.setEnabled(True)
         self.pb_test.setText("测 试")
@@ -964,11 +1053,11 @@ class CrashReport(QDialog, Ui_CrashReportDialog):
     def tb_save_click(self):
         piv_key = self.le_pivkey.text()
         if len(piv_key) < 20:
-            manager.sMessageBox("无效的身份识别码！", "error")
+            Notification.showMessage("无效的身份识别码！", "error")
             self.le_pivkey.clear()
             return
         else:
-            manager.sMessageBox("认证成功！请重启软件。", "info")
+            Notification.showMessage("认证成功！请重启软件。", "success")
             self.close()
 
         cfg["PIV"]["PIV_KEY"] = piv_key
@@ -1336,13 +1425,18 @@ class GifButton(QObject):
         self.button.setIcon(QIcon(self.movie.currentPixmap()))
 
     def eventFilter(self, obj, event):
+        # 简化事件过滤器，避免不必要的处理
         if obj == self.button:
-            if event.type() == QEvent.Enter:
-                self.movie.start()
+            event_type = event.type()
+            if event_type == QEvent.Enter:
+                # 使用单次计时器启动动画，避免阻塞事件循环
+                QTimer.singleShot(0, self.movie.start)
                 self.button.setIcon(QIcon(self.movie.currentPixmap()))
-            elif event.type() == QEvent.Leave:
+                return True
+            elif event_type == QEvent.Leave:
                 self.movie.stop()
                 self.button.setIcon(self.default_icon)
+                return True
         return super().eventFilter(obj, event)
 
 
@@ -1380,7 +1474,7 @@ class Stage:
             log.info(f"成功！BV循环已关闭。")
         self.long_stay_switch = False
         self.log_recorded = False
-    
+
 
 def game_stage_redress(game_stage):
     """游戏状态机,阶段纠察机制"""
@@ -1388,12 +1482,12 @@ def game_stage_redress(game_stage):
         if game_stage == "":
             pass
         elif starthall() and game_stage != "匹配":
-            MControl.moveclick(self_defined_args['开始游戏按钮的坐标'][0], 
+            MControl.moveclick(self_defined_args['开始游戏按钮的坐标'][0],
                                self_defined_args['开始游戏按钮的坐标'][1], 1)
             MControl.moveclick(20, 689, 1, 3)  # 商城上空白
             log.debug(f"当前实际为匹配阶段，正在尝试纠正阶段紊乱！")
         elif readyhall() and game_stage != "准备":
-            MControl.moveclick(self_defined_args['准备就绪按钮的坐标'][0], 
+            MControl.moveclick(self_defined_args['准备就绪按钮的坐标'][0],
                                self_defined_args['准备就绪按钮的坐标'][1], 1)
             MControl.moveclick(20, 689, 1, 3)  # 商城上空白
             log.debug(f"当前实际为准备阶段，正在尝试纠正阶段紊乱！")
@@ -1408,7 +1502,7 @@ def game_stage_redress(game_stage):
                                    self_defined_args['结算页祭礼完成坐标'][1], 0.5, 1)
                 MControl.moveclick(self_defined_args['结算页祭礼完成坐标'][2],
                                    self_defined_args['结算页祭礼完成坐标'][3])
-            MControl.moveclick(self_defined_args['结算页继续按钮坐标'][0], 
+            MControl.moveclick(self_defined_args['结算页继续按钮坐标'][0],
                                self_defined_args['结算页继续按钮坐标'][1], 0.5, 1)  # return hall
             MControl.moveclick(10, 10, 1, 3)  # 避免遮挡
             log.debug(f"当前实际为结束阶段，正在尝试纠正阶段紊乱！")
@@ -1426,7 +1520,6 @@ def begin():
         else:
             change_log_level(logging.INFO)
         if start_check():
-            manager.sMessageBox("脚本已启动！正在运行中···", 'info')
             screen_age()
             begin_state = True
             try:
@@ -1434,15 +1527,37 @@ def begin():
                 play_str.play()
             except SimpleaudioError:
                 pass
+
+            # 设置共享状态
+            shared_state['begin_state'] = True
+            stop_event.clear()
             event.clear()
-            begingame = threading.Thread(target=afk, daemon=True)
-            begingame.start()
-            # 如果开启提醒，则开启线程
+
+            # 导入多进程主函数
+            from Utils.process_main import afk_process_main, start_hall_tip_process
+
+            # 创建并启动AFk主进程
+            afk_process = mp.Process(
+                target=afk_process_main,
+                args=(),
+                daemon=True
+            )
+            afk_process.start()
+
+            # 如果开启提醒，则开启大厅提示进程
+            hall_tip_process_obj = None
             if cfg.getboolean("CPCI", "rb_survivor") and cfg.getboolean("CPCI", "cb_survivor_do"):
-                tip.start()
+                hall_tip_process_obj = start_hall_tip_process()
+
             # 开启日志显示窗口
             log_view.ui_init_signal.emit()
             log_view.start_log_thread()
+
+            # 记录进程对象
+            shared_state['afk_process'] = afk_process
+            shared_state['hall_tip_process'] = hall_tip_process_obj
+
+            Notification.showMessage("脚本已启动！正在运行中···", 'success')
     else:
         pass
 
@@ -1456,10 +1571,32 @@ def kill():
             play_end.play()
         except SimpleaudioError:
             pass
+
+        # 设置状态
         begin_state = False
+        shared_state['begin_state'] = False
+        stop_event.set()
         event.set()
+
+        # 获取进程对象
+        afk_process = shared_state.get('afk_process')
+        hall_tip_process = shared_state.get('hall_tip_process')
+
+        # 等待进程安全退出
+        if afk_process:
+            afk_process.join(timeout=2)
+            if afk_process.is_alive():
+                afk_process.terminate()
+
+        if hall_tip_process:
+            hall_tip_process.join(timeout=2)
+            if hall_tip_process.is_alive():
+                hall_tip_process.terminate()
+
         log.info(f"结束脚本····\n")
-        manager.sMessageBox("脚本已停止！", 'info')
+        Notification.showMessage("脚本已停止！", 'success')
+
+        # 关闭日志查看器
         log_view.thread.stop()
         # 等待线程安全退出
         log_view.thread.wait()
@@ -1750,12 +1887,10 @@ def hall_tip():
 def autospace():
     """Child thread, auto press space"""
     while not stop_space:
-        if not pause_event.is_set():
-            pause_event.wait()
-        else:
-            press_key('space')
-            time.sleep(5)
-            release_key('space')
+        # 不再需要检查暂停事件，使用进程挂起/恢复功能
+        press_key('space')
+        time.sleep(5)
+        release_key('space')
 
 
 def move_window(hwnd, target_x, target_y):
@@ -1771,7 +1906,7 @@ def move_window(hwnd, target_x, target_y):
         return True
     except Exception as e:
         log.warning(f"移动窗口到新的位置失败：{e}")
-        manager.sMessageBox(f"尝试以管理员权限运行脚本。", 'error')
+        Notification.showMessage(f"尝试以管理员权限运行脚本。", 'error')
         return False
 
 
@@ -1793,45 +1928,17 @@ def action():
     rb_random_mode = cfg.getboolean("CPCI", "rb_random_mode")
     rb_killer = cfg.getboolean("CPCI", "rb_killer")
     while not stop_action:
-        if not pause_event.is_set():
-            pause_event.wait()
-        else:
-            if rb_survivor:
-                survivor_action()
-            elif rb_fixed_mode and rb_killer:
-                killer_fixed_act()
-            elif rb_random_mode and rb_killer:
-                killer_action()
+        # 不再需要检查暂停事件，使用进程挂起/恢复功能
+        if rb_survivor:
+            survivor_action()
+        elif rb_fixed_mode and rb_killer:
+            killer_fixed_act()
+        elif rb_random_mode and rb_killer:
+            killer_action()
 
 
 def listen_key():
     """快捷键监听"""
-
-    def pause():
-        global pause
-
-        if not pause:
-            try:
-                # 播放WAV文件
-                play_pau.play()
-            except SimpleaudioError:
-                pass
-            log.info(f"脚本已暂停")
-            pause = True
-            pause_event.clear()
-        elif pause:
-            try:
-                # 播放WAV文件
-                play_res.play()
-            except SimpleaudioError:
-                pass
-            log.info(f"脚本已恢复")
-            pause = False
-            pause_event.set()
-        try:
-            win32gui.SetForegroundWindow(hwnd)
-        except Exception as ex:
-            print(f"An error occurred: {ex}")
 
     def convert_hotkey_format(hotkey):
         """将热键格式转换为符合 keyboard 库的要求。"""
@@ -1874,11 +1981,11 @@ def listen_key():
             'printscreen': '<printscreen>',
             'esc': '<esc>',
         }
-        
+
         # 使用正则表达式匹配并替换键
         pattern = r'\b(' + '|'.join(re.escape(key) for key in key_mapping.keys()) + r')\b'
         converted_hotkey = re.sub(pattern, lambda x: key_mapping[x.group()], hotkey)
-        
+
         return converted_hotkey
 
     def convert_selected_hotkeys(args):
@@ -1894,10 +2001,10 @@ def listen_key():
         formatted_hotkey = convert_selected_hotkeys(self_defined_args)
         # 注册热键
         hotkeys = {
-        formatted_hotkey['开始快捷键'][0]: begin,
-        formatted_hotkey['暂停快捷键'][0]: pause,
-        formatted_hotkey['停止快捷键'][0]: kill
-    }
+            formatted_hotkey['开始快捷键'][0]: begin,
+            formatted_hotkey['暂停快捷键'][0]: DbdWindow.pb_pause_click,
+            formatted_hotkey['停止快捷键'][0]: kill
+        }
 
         # 创建全局热键监听器
         with keyboard.GlobalHotKeys(hotkeys) as listener:
@@ -1969,12 +2076,12 @@ def img_ocr(x1, y1, x2, y2, sum=128) -> str:
     """OCR识别图像，返回字符串
     :return: string"""
     if hwnd == 0:
-        manager.sMessageBox('未检测到游戏窗口！', 'warning')
+        Notification.showMessage('未检测到游戏窗口！', 'warning')
         return ""
     result = ""
     image = screenshot(hwnd)
     if image is None:
-        manager.sMessageBox('无效的截图区域，游戏或已崩溃！', 'error')
+        Notification.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
         log.warning(f"截图失败，无效的截图区域！")
         kill()
         return result
@@ -2128,7 +2235,7 @@ def disconnect_confirm(sum=120) -> None:
 
     image = screenshot(hwnd)
     if image is None:
-        manager.sMessageBox('无效的截图区域，游戏或已崩溃！', 'error')
+        Notification.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
         log.warning(f"截图失败，无效的截图区域！")
         kill()
         return
@@ -2225,8 +2332,7 @@ def reconnect() -> bool:
         while not main_quit:
             if event.is_set():
                 return True
-            if not pause_event.is_set():
-                pause_event.wait()
+            # 不再需要检查暂停事件，使用进程挂起/恢复功能
             if disconnect_check():
                 for sum in range(130, 80, -10):
                     disconnect_confirm(sum)
@@ -2289,7 +2395,7 @@ def survivor_action() -> None:
     press_key('w')
     press_key('lshift')
     act_direction = random_direction()
-    for i in range(10):
+    for _ in range(10):
         press_key(act_direction)
         time.sleep(0.05)
         release_key(act_direction)
@@ -2438,8 +2544,7 @@ def character_selection() -> None:
     input_str = custom_select.select_killer_lst[index]
     if event.is_set():
         return
-    if not pause_event.is_set():
-        pause_event.wait()
+    # 不再需要检查暂停事件，使用进程挂起/恢复功能
     if cfg.getboolean("SEKI", "search_fix"):
         pyperclip.copy(input_str)
         py.hotkey('ctrl', 'v')
@@ -2479,7 +2584,7 @@ def start_check() -> bool:
     if eq(hwnd, 0):
         message = "未检测到游戏窗口，请先启动游戏！" if lang == "chinese" else \
             "The game window was not detected. Please start the game first!"
-        manager.sMessageBox(message, "warning")
+        Notification.showMessage(message, "warning")
         return False
     else:
         real_screen_width, real_screen_height, _ = get_screen_size()
@@ -2490,35 +2595,35 @@ def start_check() -> bool:
         if real_screen_width >= 1920 and real_screen_height >= 1080 and width != 1920 and height != 1080 and self_defined_args['匹配阶段的识别范围'][2] == 1920 and self_defined_args['匹配阶段的识别范围'][3] == 1080:
             message = f"当前正使用默认配置，请将游戏窗口调整为<1920×1080> 分辨率，当前分辨率为<{width}×{height}>" if lang == "chinese" else \
                 f"Currently using the default configuration, please adjust the game window to <1920×1080> resolution, the current resolution is <{width}×{height}>"
-            manager.sMessageBox(message, "warning", 7000)
+            Notification.showMessage(message, "warning", 7000)
             return False
 
     # 判断阵营选择
     if not dbdWindowUi.rb_killer.isChecked() and not dbdWindowUi.rb_survivor.isChecked():
         message = "请选择阵营！" if lang == "chinese" else "Please select the camp!"
-        manager.sMessageBox(message, "warning")
+        Notification.showMessage(message, "warning")
         return False
 
     # 判断行为模式选择
     if (not dbdWindowUi.rb_fixed_mode.isChecked() and not dbdWindowUi.rb_random_mode.isChecked()
             and dbdWindowUi.rb_killer.isChecked()):
         message = "请选择行为模式！" if lang == "chinese" else "Please select the mode!"
-        manager.sMessageBox(message, "warning")
+        Notification.showMessage(message, "warning")
         return False
 
     # 判断角色选择是否规范
     if (not custom_select.select_killer_lst and cfg.getboolean("CPCI", "rb_killer")
             and not cfg.getboolean("SEKI", "usefile")):
         message = "至少选择一个屠夫！" if lang == "chinese" else "Choose at least one killer!"
-        manager.sMessageBox(message, "warning")
+        Notification.showMessage(message, "warning")
         return False
 
     # 使用外部文件时的判断
     if eq(os.path.getsize(CUSTOM_KILLER_PATH), 0) and cfg.getboolean("SEKI", "usefile"):
         message = "外部文件至少写入一个屠夫！" if lang == "chinese" else "External files are written to at least one killer!"
-        manager.sMessageBox(message, "warning")
+        Notification.showMessage(message, "warning")
         return False
-    
+
     if not move_window(hwnd, 0, 0):
         return False
 
@@ -2545,8 +2650,7 @@ def afk() -> None:
         while not matching:
             if event.is_set():
                 break
-            if not pause_event.is_set():
-                pause_event.wait()
+            # 不再需要检查暂停事件，使用进程挂起/恢复功能
 
             # 判断条件是否成立
             if starthall():
@@ -2566,8 +2670,7 @@ def afk() -> None:
                 while not matching:
                     if event.is_set():
                         break
-                    if not pause_event.is_set():
-                        pause_event.wait()
+                    # 不再需要检查暂停事件，使用进程挂起/恢复功能
                     MControl.moveclick(self_defined_args['开始游戏按钮的坐标'][0],
                                        self_defined_args['开始游戏按钮的坐标'][1], 1)
                     MControl.moveclick(20, 689, 1, 5)  # 商城上空白
@@ -2611,8 +2714,7 @@ def afk() -> None:
         while not ready_room:
             if event.is_set():
                 break
-            if not pause_event.is_set():
-                pause_event.wait()
+            # 不再需要检查暂停事件，使用进程挂起/恢复功能
 
             if readyhall():
                 stage_monitor.exit_stage()
@@ -2665,8 +2767,7 @@ def afk() -> None:
         while not game:
             if event.is_set():
                 break
-            if not pause_event.is_set():
-                pause_event.wait()
+            # 不再需要检查暂停事件，使用进程挂起/恢复功能
 
             # 判断段位重置
             if season_reset():
@@ -2775,8 +2876,7 @@ def is_admin():
         sys.exit()
 
 
-def global_exception(exctype, value, traceback):
-    logging.error("未捕获的异常", exc_info=(exctype, value, traceback))
+
 
 
 if __name__ == '__main__':
@@ -2964,12 +3064,14 @@ if __name__ == '__main__':
     log.setLevel(logging.INFO)  # 设置记录器的日志级别
     log.addHandler(file_handler)
     atexit.register(close_logger)  # 程序退出时关闭日志
-    sys.excepthook = global_exception  # 全局未捕获异常捕获
+    # 导入并设置全局异常处理函数
+    from Utils.exception_handler import global_exception_handler
+    sys.excepthook = global_exception_handler  # 全局未捕获异常捕获
 
     # 实例声明
     input_cn = InputChinese()
     MControl = MouseController(hwnd)
-    manager = NotificationManager()
+    Notification = NotificationManager()
     custom_command = ActionExecutor(CUSTOM_COMMAND_PATH, hwnd)
     log_view = LogView(LOG_PATH)
 
@@ -2986,13 +3088,18 @@ if __name__ == '__main__':
     stop_thread = False  # 检查tip标志
     stop_space = False  # 自动空格标志
     stop_action = False  # 执行动作标志
-    # 创建子线程
+    # 导入多进程共享状态模块
+    from Utils.shared_state import shared_state, stop_event, cmd_queue, init_shared_args
+
+    # 初始化共享参数
+    init_shared_args(self_defined_args)
+
+    # 创建事件对象（用于兼容现有代码）
     event = threading.Event()
     event.set()
-    pause_event = threading.Event()
-    pause_event.set()
+
+    # 创建热键监听线程（保留在主进程中）
     hotkey = threading.Thread(target=listen_key, daemon=True)
-    tip = threading.Thread(target=hall_tip, daemon=True)
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
 
     splash.show_message("正在检查通知...")
@@ -3008,7 +3115,7 @@ if __name__ == '__main__':
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
         check_update('V2.8.1')
-    
+
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()
     sys.exit(app.exec_())

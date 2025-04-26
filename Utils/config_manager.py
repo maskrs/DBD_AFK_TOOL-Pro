@@ -1,5 +1,5 @@
 """
-Configuration Manager Module - Handles application settings and persistence
+配置管理器模块 - 处理应用程序设置和持久化
 """
 import json
 import os
@@ -8,40 +8,40 @@ from threading import Lock
 from configparser import ConfigParser
 
 class ConfigManager:
-    """Thread-safe configuration manager"""
+    """线程安全的配置管理器"""
     _instance = None
     _lock = Lock()
-    
+
     def __new__(cls):
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
             return cls._instance
-    
+
     def __init__(self):
         if not hasattr(self, '_initialized'):
             self._initialized = True
-            self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            
+            self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
             # 配置文件路径
             self.cfg_path = os.path.join(self.base_dir, "cfg.cfg")
             self.sdargs_path = os.path.join(self.base_dir, "SDargs.json")
             self.custom_killer_path = os.path.join(self.base_dir, "custom_killer.txt")
             self.custom_command_path = os.path.join(self.base_dir, "custom_command.txt")
-            
+
             # OCR相关路径
             self.check_path = os.path.join(self.base_dir, "tesseract-ocr")
             self.ocr_path = os.path.join(self.base_dir, "tesseract-ocr", "tesseract.exe")
             self.tessdata_prefix = os.path.join(self.base_dir, "tesseract-ocr", "tessdata")
-            
+
             # 日志路径
             self.log_path = os.path.join(self.base_dir, "debug_data.log")
-            
+
             # 配置数据
             self._config = ConfigParser()
             self._user_config = {}
             self._ui_config = self._get_default_ui_config()
-            
+
             # 确保配置文件存在
             if not os.path.exists(self.cfg_path):
                 # 创建默认配置
@@ -53,12 +53,12 @@ class ConfigManager:
                 # 保存默认配置
                 with open(self.cfg_path, 'w', encoding='utf-8') as f:
                     self._config.write(f)
-            
+
             # 加载配置
             self.load_configs()
-    
+
     def load_configs(self):
-        """Load all configuration files"""
+        """加载所有配置文件"""
         with self._lock:
             # 加载系统配置
             if os.path.exists(self.cfg_path):
@@ -69,34 +69,58 @@ class ConfigManager:
                         if section not in self._ui_config:
                             self._ui_config[section] = {}
                         for key, value in self._config.items(section):
-                            # PIV_KEY 保持原始字符串值，其他转换为布尔值
+                            # 特殊处理的配置项
                             if section == 'PIV' and key == 'piv_key':
+                                # PIV_KEY 保持原始字符串值
                                 self._ui_config[section][key.upper()] = value
+                            elif section == 'THEME' and key in ['accent_color_r', 'accent_color_g', 'accent_color_b']:
+                                # 强调色RGB值转换为整数
+                                try:
+                                    self._ui_config[section][key] = int(value)
+                                except ValueError:
+                                    # 如果转换失败，使用默认值
+                                    default_values = {'accent_color_r': 52, 'accent_color_g': 152, 'accent_color_b': 219}
+                                    self._ui_config[section][key] = default_values[key]
+                            elif section == 'THEME' and key == 'auto_accent_color':
+                                # auto_accent_color 转换为布尔值
+                                try:
+                                    self._ui_config[section][key] = self._config.getboolean(section, key)
+                                except ValueError:
+                                    self._ui_config[section][key] = True  # 默认为自动模式
                             else:
+                                # 其他转换为布尔值
                                 try:
                                     self._ui_config[section][key] = self._config.getboolean(section, key)
                                 except ValueError:
                                     self._ui_config[section][key] = False
-            
+
             # 加载用户自定义参数
             if os.path.exists(self.sdargs_path):
                 with open(self.sdargs_path, 'r', encoding='utf-8') as f:
                     self._user_config = json.load(f)
             else:
                 self._user_config = self._get_default_user_config()
-    
+
     def save_configs(self):
-        """Save all configuration files"""
+        """保存所有配置文件"""
         with self._lock:
             # 保存系统配置
             for section, components in self._ui_config.items():
                 if not self._config.has_section(section):
                     self._config.add_section(section)
                 for key, value in components.items():
-                    # PIV_KEY 保持原始值，其他转换为布尔值
+                    # 特殊处理的配置项
                     if section == 'PIV' and key == 'PIV_KEY':
-                        self._config.set(section, key, str(value))
+                        # PIV_KEY 保持原始值
+                        self._config.set(section, key.lower(), str(value))
+                    elif section == 'THEME' and key in ['accent_color_r', 'accent_color_g', 'accent_color_b']:
+                        # 强调色RGB值保持数字
+                        self._config.set(section, key, str(int(value)))
+                    elif section == 'THEME' and key == 'auto_accent_color':
+                        # auto_accent_color 保持布尔值
+                        self._config.set(section, key, str(bool(value)).lower())
                     else:
+                        # 其他转换为布尔值
                         self._config.set(section, key, str(bool(value)).lower())
 
             # 保存到文件
@@ -106,47 +130,27 @@ class ConfigManager:
             # 保存用户自定义参数
             with open(self.sdargs_path, 'w', encoding='utf-8') as f:
                 json.dump(self._user_config, f, indent=4, ensure_ascii=False)
-    
-    def get_config_parser(self) -> ConfigParser:
-        """Get the ConfigParser instance"""
+
+    def get_config_value(self, section, key, default=None):
+        """获取配置值"""
         with self._lock:
-            return self._config
-    
-    def get_section(self, section: str) -> Dict[str, Any]:
-        """Get a configuration section"""
+            return self._ui_config.get(section, {}).get(key, default)
+
+    def save_config_value(self, section, key, value):
+        """保存配置值"""
         with self._lock:
-            if self._config.has_section(section):
-                return dict(self._config[section])
-            return {}
-    
-    def set_section(self, section: str, values: Dict[str, Any]):
-        """Set a configuration section"""
-        with self._lock:
-            if not self._config.has_section(section):
-                self._config.add_section(section)
-            for key, value in values.items():
-                # PIV_KEY 保持原始值，其他转换为布尔值
-                if section == 'PIV' and key == 'PIV_KEY':
-                    self._config.set(section, key, str(value))
-                else:
-                    self._config.set(section, key, str(bool(value)).lower())
-            self.save_configs()
-    
+            if section not in self._ui_config:
+                self._ui_config[section] = {}
+            self._ui_config[section][key] = value
+            self.update_ui_states({section: {key: value}})
+
     def get_ui_config(self) -> Dict[str, Dict[str, Any]]:
-        """Get UI configuration"""
+        """获取UI配置"""
         with self._lock:
             return self._ui_config
-    
-    def set_ui_component_state(self, component_type: str, component_id: str, state: Any):
-        """Set UI component state"""
-        with self._lock:
-            if component_type in self._ui_config:
-                if component_id in self._ui_config[component_type]:
-                    self._ui_config[component_type][component_id] = state
-                    self.save_configs()
-    
+
     def update_ui_states(self, ui_states: Dict[str, Dict[str, Any]]):
-        """Update UI states from UI components"""
+        """从UI组件更新UI状态"""
         with self._lock:
             for section, components in ui_states.items():
                 if section in self._ui_config:
@@ -155,14 +159,23 @@ class ConfigManager:
                     if not self._config.has_section(section):
                         self._config.add_section(section)
                     for key, value in components.items():
-                        # PIV_KEY 保持原始值，其他转换为布尔值
+                        # 特殊处理的配置项
                         if section == 'PIV' and key == 'PIV_KEY':
-                            self._config.set(section, key, str(value))
-                        else:
+                            # PIV_KEY 保持原始值
+                            self._config.set(section, key.lower(), str(value))
+                        elif section == 'THEME' and key in ['accent_color_r', 'accent_color_g', 'accent_color_b']:
+                            # 强调色RGB值保持数字
+                            self._config.set(section, key, str(int(value)))
+                        elif section == 'THEME' and key == 'auto_accent_color':
+                            # auto_accent_color 保持布尔值
                             self._config.set(section, key, str(bool(value)).lower())
-    
+                        else:
+                            # 其他转换为布尔值
+                            self._config.set(section, key, str(bool(value)).lower())
+            self.save_configs()
+
     def _get_default_ui_config(self) -> Dict[str, Dict[str, Any]]:
-        """Get default UI configuration"""
+        """获取默认UI配置"""
         # CPCI (Control Panel Configuration Items)
         cpci_keys = [
             "rb_survivor", "cb_survivor_do", "rb_killer", "cb_killer_do",
@@ -181,11 +194,20 @@ class ConfigManager:
         cucom_dict = {"cb_customcommand": False}
 
         # UPDATE Configuration
-        update_keys = ["cb_autocheck", "rb_chinese", "rb_english"]
-        update_dict = {key: False for key in update_keys}
+        update_dict = {
+            "cb_autocheck": True,
+            "rb_chinese": True,
+            "rb_english": False
+        }
 
         # THEME Configuration
-        theme_dict = {"dark_mode": False}
+        theme_dict = {
+            "dark_mode": False,
+            "auto_accent_color": True,  # 是否自动获取系统强调色
+            "accent_color_r": 52,  # 自定义强调色R通道
+            "accent_color_g": 152,  # 自定义强调色G通道
+            "accent_color_b": 219   # 自定义强调色B通道
+        }
 
         # CUSSEC (Custom Section Configuration)
         killer_list = [
@@ -211,30 +233,19 @@ class ConfigManager:
             "PIV": piv_dict
         }
 
-    def get_config(self, key: str, default: Any = None) -> Any:
-        """Get system configuration value"""
-        with self._lock:
-            return self._config.get(key, default)
-    
-    def set_config(self, key: str, value: Any):
-        """Set system configuration value"""
-        with self._lock:
-            self._config[key] = value
-            self.save_configs()
-    
-    def get_user_config(self, key: str, default: Any = None) -> Any:
-        """Get user configuration value"""
+    def get_user_config(self, key, default=None):
+        """获取用户配置"""
         with self._lock:
             return self._user_config.get(key, default)
-    
-    def set_user_config(self, key: str, value: Any):
-        """Set user configuration value"""
+
+    def set_user_config(self, key, value):
+        """设置用户配置"""
         with self._lock:
             self._user_config[key] = value
             self.save_configs()
-    
+
     def _get_default_user_config(self) -> dict:
-        """Get default user configuration"""
+        """获取默认用户配置"""
         return {
             '赛后发送消息': 'DBD-AFK League',
             '人类发送消息': 'AFK',
@@ -291,5 +302,6 @@ class ConfigManager:
             'event_rewards': ["-"],
         }
 
-# Global instance
+
+# 全局实例
 config_manager = ConfigManager()

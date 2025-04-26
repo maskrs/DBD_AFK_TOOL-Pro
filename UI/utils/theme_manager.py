@@ -31,22 +31,22 @@ class ThemeManager(QObject):
         self._dark_mode = get_system_theme()
         self._accent_color = get_system_accent_color()
         self._supports_mica = sys.getwindowsversion().build >= 22000
-        
+
         # 创建主题监听器
         self._theme_watcher = ThemeWatcher(self)
-        
+
         # 连接强调色变化信号到背景更新
         self.accentColorChanged.connect(self._on_accent_color_changed)
-    
+
     def _on_accent_color_changed(self, new_accent):
         """处理强调色变化"""
         if self._window:
             # 更新窗口效果
             self._apply_current_backdrop()
-            
+
             # 更新所有使用强调色的控件
             self._update_accent_color_widgets(self._window)
-    
+
     def _update_accent_color_widgets(self, parent_widget):
         """递归更新所有使用强调色的控件"""
         for child in parent_widget.findChildren(QWidget):
@@ -77,10 +77,10 @@ class ThemeManager(QObject):
         if self._dark_mode != dark:
             self._dark_mode = dark
             if self._window:
-                # 先应用背景效果
-                QTimer.singleShot(100, self._apply_current_backdrop)
-                # 再发送信号
+                # 先发送信号，使组件停止重绘
                 self.themeChanged.emit(dark)
+                # 立即应用背景效果，不使用延时
+                self._apply_current_backdrop()
 
     def toggleTheme(self):
         """切换主题"""
@@ -102,29 +102,32 @@ class ThemeManager(QObject):
 
         try:
             hwnd = int(self._window.winId())
-            
+
             # 设置窗口属性
             if self._backdrop_type in [BackdropType.MICA, BackdropType.AUTO] and self._supports_mica:
-                # 启用透明和Mica效果
-                self._window.setAttribute(Qt.WA_TranslucentBackground)
-                self._window.setAutoFillBackground(False)
-                
+                # 检查是否已经设置了透明属性，避免重复设置
+                if not self._window.testAttribute(Qt.WA_TranslucentBackground):
+                    self._window.setAttribute(Qt.WA_TranslucentBackground)
+                    self._window.setAutoFillBackground(False)
+
                 # 应用Mica效果
                 theme = MicaTheme.DARK if self._dark_mode else MicaTheme.LIGHT
                 ApplyMica(hwnd, theme, MicaStyle.DEFAULT)
             else:
                 # 禁用透明，使用纯色背景
-                self._window.setAttribute(Qt.WA_TranslucentBackground, False)
-                self._window.setAutoFillBackground(False)
-                
+                if self._window.testAttribute(Qt.WA_TranslucentBackground):
+                    self._window.setAttribute(Qt.WA_TranslucentBackground, False)
+                    self._window.setAutoFillBackground(False)
+
                 # 设置背景色
                 palette = self._window.palette()
-                if self._dark_mode:
-                    palette.setColor(QPalette.Window, QColor(32, 32, 32))
-                else:
-                    palette.setColor(QPalette.Window, QColor(240, 240, 240))
-                self._window.setPalette(palette)
-                
+                bg_color = QColor(32, 32, 32) if self._dark_mode else QColor(240, 240, 240)
+
+                # 只有当颜色发生变化时才设置
+                if palette.color(QPalette.Window) != bg_color:
+                    palette.setColor(QPalette.Window, bg_color)
+                    self._window.setPalette(palette)
+
                 # 设置标题栏颜色
                 try:
                     accent = self.accent_color
@@ -150,16 +153,16 @@ class ThemeManager(QObject):
                 self.opacity = 0.22 if dark_mode else 0.15  # 增加亮色模式的不透明度
                 self.setAttribute(Qt.WA_TranslucentBackground)
                 self.setAutoFillBackground(False)
-                
+
                 # 添加模糊效果
                 self.blur = QGraphicsBlurEffect()
                 self.blur.setBlurRadius(30)
                 self.setGraphicsEffect(self.blur)
-                
+
             def paintEvent(self, event):
                 painter = QPainter(self)
                 painter.setRenderHint(QPainter.Antialiasing)
-                
+
                 # 创建基础颜色和渐变颜色
                 if self.dark_mode:
                     base_color = QColor(32, 32, 32)
@@ -175,9 +178,9 @@ class ThemeManager(QObject):
                     color2 = QColor(130, 180, 255)  # 更鲜艳的天蓝
                     color3 = QColor(200, 130, 255)  # 更鲜艳的紫色
                     color4 = QColor(130, 255, 170)  # 更鲜艳的青绿
-                
+
                 painter.fillRect(self.rect(), base_color)
-                
+
                 # 创建更丰富的渐变点
                 gradients = [
                     # 主要渐变
@@ -196,70 +199,70 @@ class ThemeManager(QObject):
                     (0.3, 0.3, color1, 0.4, 0.2),
                     (0.7, 0.7, color2, 0.4, 0.2),
                 ]
-                
+
                 for x, y, color, size_factor, intensity in gradients:
                     gradient = QRadialGradient(
                         x * self.width(),
                         y * self.height(),
                         max(self.width(), self.height()) * size_factor
                     )
-                    
+
                     # 创建更平滑的颜色过渡
                     current_opacity = self.opacity * intensity
-                    gradient.setColorAt(0, QColor(color.red(), color.green(), color.blue(), 
+                    gradient.setColorAt(0, QColor(color.red(), color.green(), color.blue(),
                                                 int(255 * current_opacity)))
-                    gradient.setColorAt(0.3, QColor(color.red(), color.green(), color.blue(), 
+                    gradient.setColorAt(0.3, QColor(color.red(), color.green(), color.blue(),
                                                   int(255 * current_opacity * 0.8)))
-                    gradient.setColorAt(0.6, QColor(color.red(), color.green(), color.blue(), 
+                    gradient.setColorAt(0.6, QColor(color.red(), color.green(), color.blue(),
                                                   int(255 * current_opacity * 0.4)))
-                    gradient.setColorAt(0.8, QColor(color.red(), color.green(), color.blue(), 
+                    gradient.setColorAt(0.8, QColor(color.red(), color.green(), color.blue(),
                                                   int(255 * current_opacity * 0.2)))
                     gradient.setColorAt(1, QColor(color.red(), color.green(), color.blue(), 0))
-                    
+
                     painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
                     painter.fillRect(self.rect(), gradient)
-                    
+
             def resizeEvent(self, event):
                 # 调整模糊效果
                 blur_radius = min(30, max(10, min(self.width(), self.height()) / 30))
                 self.blur.setBlurRadius(blur_radius)
                 self.update()
                 super().resizeEvent(event)
-                
+
             def update_theme(self, dark_mode):
                 """Update widget theme"""
                 self.dark_mode = dark_mode
                 self.opacity = 0.22 if dark_mode else 0.15
                 self.update()
-        
+
         # 清除现有的渐变小部件
         for child in self._window.findChildren(GradientWidget):
             child.deleteLater()
-            
+
         # 创建新的渐变背景小部件
         gradient_widget = GradientWidget(self._window, self.isDarkMode())
         gradient_widget.lower()
         gradient_widget.resize(self._window.size())
         gradient_widget.show()
-        
+
         # 连接主题变化信号
         self.themeChanged.connect(gradient_widget.update_theme)
-        
+
         # 连接窗口大小变化信号
         self._window.resizeEvent = lambda event: (
             gradient_widget.resize(event.size()),
             super(type(self._window), self._window).resizeEvent(event)
         )
-        
+
         # 设置标题栏颜色
         try:
             # 获取窗口句柄
             hwnd = self._window.winId()
-            
+
             # 获取当前的强调色
             accent = self.accentColor()
             title_bar_color = (accent['blue'] << 16) | (accent['green'] << 8) | accent['red']
-            
+
             # 设置标题栏颜色
             DWMWA_CAPTION_COLOR = 35  # Windows 11 22H2 及更高版本支持
             windll.dwmapi.DwmSetWindowAttribute(
