@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QWidget, QLabel, QDesktopWidget, QHBoxLayout
 from PyQt5.QtCore import QTimer, QPoint, QPropertyAnimation, QEasingCurve, Qt, pyqtSignal, QObject
 from PyQt5.QtGui import QPainter
 
-
+## 废弃使用
 class NotificationWidget(QWidget):
     closed = pyqtSignal()
 

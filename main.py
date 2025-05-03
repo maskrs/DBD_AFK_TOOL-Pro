@@ -15,7 +15,7 @@ import tempfile
 import threading
 import time
 import webbrowser
-import pyautogui as py
+import pydirectinput as py
 import tkinter as tk
 import pyperclip
 import pytesseract
@@ -51,7 +51,7 @@ from UI.CustomCommandUI import Ui_CustomCommand
 from UI.AutoComplete import CodeTextEdit
 from UI.SettingsUI import Ui_SettingDialog
 from UI.CrashReportUI import Ui_CrashReportDialog
-from UI.Notification import NotificationManager
+from UI.pyqt_notification import NotificationManager
 
 from Utils.GameOperate import (press_key, release_key, press_mouse, release_mouse, random_direction, random_movement, random_move, random_veer, killer_ctrl,
                                killer_skill, killer_skillclick)
@@ -183,7 +183,7 @@ class DbdWindow(QMainWindow, Ui_MainWindow):
 
     def closeEvent(self, event):
         # 在主窗口关闭时关闭所有通知
-        manager.closeAllNotifications()
+        Message.closeAllNotifications()
         event.accept()
 
 
@@ -240,7 +240,7 @@ class SelectWindow(QDialog, Ui_Dialog):
 
     @staticmethod
     def pb_save_click():
-        manager.sMessageBox('已保存配置！', 'info')
+        Message.showMessage('已保存配置！', 'success')
         save_cfg()
 
 
@@ -445,17 +445,17 @@ class CustomCommand(QWidget, Ui_CustomCommand):
         save_cfg()
         with open(CUSTOM_COMMAND_PATH, 'w', encoding='utf-8') as f:
             f.write(self.pe_edit.toPlainText())
-        manager.sMessageBox("保存成功！", 'info')
+        Message.showMessage("保存成功！", 'success')
 
     def pb_test_click(self):
         """测试自定义动作"""
         test_killer_name = None if self.le_test.text() == '' else self.le_test.text()
         if hwnd == 0:
-            manager.sMessageBox('未检测到游戏窗口', 'error')
+            Message.showMessage('未检测到游戏窗口', 'error')
             return
         win32gui.SetForegroundWindow(hwnd)
         custom_command.execute_action_sequence(test_killer_name)
-        manager.sMessageBox('测试结束！', 'info')
+        Message.showMessage('测试结束！', 'info')
 
 
 class ShortcutRecorder(QObject):
@@ -765,7 +765,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         # 重置为初始值
         with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
             json.dump(self_defined_args_original, f, indent=4, ensure_ascii=False)
-        manager.sMessageBox("重置成功！", 'info')
+        Message.showMessage("重置成功！", 'success')
         self.load_settings()
 
     def pb_save_click(self):
@@ -774,7 +774,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
             json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
         self.retranslateUi(self)
-        manager.sMessageBox("保存成功！", 'info')
+        Message.showMessage("保存成功！", 'success')
         self.content_changed = False
 
     def update_settings(self):
@@ -810,12 +810,12 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         try:
             offset_x, offset_y = self_defined_args['断线确认偏移量']
         except ValueError:
-            manager.sMessageBox("偏移量格式错误！", "error", 5000)
+            Message.showMessage("偏移量格式错误！", "error", 5000)
             return
         if offset_x >= -50 and offset_y >= -50 and offset_x < 50 and offset_y < 50:
             disconnect_confirm()
         else:
-            manager.sMessageBox("偏移量范围为-50~50！", "error", 5000)
+            Message.showMessage("偏移量范围为-50~50！", "error", 5000)
     
     def closeEvent(self, event):
         if self.content_changed == True:
@@ -851,7 +851,7 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
                         
                     except Exception as e:
                         log.error(f"保存热键配置失败: {e}")
-                        manager.sMessageBox("保存热键配置失败！", 'error')
+                        Message.showMessage("保存热键配置失败！", 'error')
                         
             QTimer.singleShot(0, update_ui)
                 
@@ -924,20 +924,20 @@ class Custom_select(QWidget, Ui_Custom_select):
         try:
             with open(CUSTOM_KILLER_PATH, 'w', encoding="utf-8") as f:
                 f.write(self.pt_search.toPlainText())
-            manager.sMessageBox("已保存配置！", 'info')
+            Message.showMessage("已保存配置！", 'success')
         except FileNotFoundError:
-            manager.sMessageBox(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
+            Message.showMessage(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
         except Exception as e:
-            manager.sMessageBox(f"保存文件时出错:{e}", "error")
+            Message.showMessage(f"保存文件时出错:{e}", "error")
 
     def loading_settings(self):
         try:
             with open(CUSTOM_KILLER_PATH, 'r', encoding="utf-8") as f:
                 self.pt_search.setPlainText(f.read())
         except FileNotFoundError:
-            manager.sMessageBox(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
+            Message.showMessage(f"{CUSTOM_KILLER_PATH}文件不存在！", "error")
         except Exception as e:
-            manager.sMessageBox(f"读取文件时出错:{e}", "error")
+            Message.showMessage(f"读取文件时出错:{e}", "error")
 
 
 class Settings(QDialog, Ui_SettingDialog):
@@ -1019,7 +1019,7 @@ class Settings(QDialog, Ui_SettingDialog):
             else:
                 message = (f"The current screen resolution is {screen_width}*{screen_height},\n"
                            f" and the zoom is {int(zoom_factor * 100)}%. No coordinate transf-\normation is required.")
-            manager.sMessageBox(message, 'info')
+            Message.showMessage(message, 'info')
             return
         else:
             if lang == "chinese":
@@ -1034,7 +1034,7 @@ class Settings(QDialog, Ui_SettingDialog):
 
         if eq(confirm, 6):  # 点击确认
             if self_defined_args['坐标转换开关'] == 1:
-                manager.sMessageBox("你已进行过坐标转换，请勿重复进行！", 'error')
+                Message.showMessage("你已进行过坐标转换，请勿重复进行！", 'warning')
                 return
             self_defined_args['坐标转换开关'] = 1
             # 找到包含"坐标"和"识别范围"的键
@@ -1070,7 +1070,7 @@ class Settings(QDialog, Ui_SettingDialog):
                 json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
 
             message = "坐标转换已完成！" if lang == "chinese" else "Coordinate transformation is complete!"
-            manager.sMessageBox(message, 'info')
+            Message.showMessage(message, 'success')
 
     @staticmethod
     def pb_crashreport_click():
@@ -1090,9 +1090,9 @@ class ShowLog(QDialog, Ui_ShowLogDialog):
                 self.te_showlog.setPlainText(f.read())
                 print(f.read())
         except FileNotFoundError:
-            manager.sMessageBox("\"debug_data.log\"文件不存在！", "error")
+            Message.showMessage("\"debug_data.log\"文件不存在！", "error")
         except Exception as e:
-            manager.sMessageBox(f"读取文件时出错:{e}", "error")
+            Message.showMessage(f"读取文件时出错:{e}", "error")
 
 
 class DebugTool(QDialog, Ui_DebugDialog):
@@ -1121,11 +1121,11 @@ class DebugTool(QDialog, Ui_DebugDialog):
     def pb_test_click(self):
         # 获取坐标和关键字
         if hwnd == 0:
-            manager.sMessageBox('游戏未启动！', 'error')
+            Message.showMessage('游戏未启动！', 'error')
             return
         coord_xy = self.le_coord.text()
         if not coord_xy:
-            manager.sMessageBox("请先框选区域！", 'warning')
+            Message.showMessage("请先框选区域！", 'warning')
             return
         else:
             coordinates = [int(coord) for coord in coord_xy.split(",")]
@@ -1134,7 +1134,7 @@ class DebugTool(QDialog, Ui_DebugDialog):
         key_words = self.le_keywords.text().split(",")
         # print(key_words)
         if not key_words or all(not item.strip() for item in key_words):
-            manager.sMessageBox("请输入关键字！", 'warning')
+            Message.showMessage("请输入关键字！", 'warning')
             return
 
         self.pe_result.clear()
@@ -1158,7 +1158,7 @@ class DebugTool(QDialog, Ui_DebugDialog):
             # 处理事件队列
             QCoreApplication.processEvents()
         self.pe_result.appendPlainText(f"- - - - - - - - -\n测试完成！")
-        manager.sMessageBox('测试完成！', 'info')
+        Message.showMessage('测试完成！', 'info')
         self.pb_test.setEnabled(True)
         self.pb_selection_region.setEnabled(True)
         self.pb_test.setText("测 试")
@@ -1181,11 +1181,11 @@ class CrashReport(QDialog, Ui_CrashReportDialog):
     def tb_save_click(self):
         piv_key = self.le_pivkey.text()
         if len(piv_key) < 20:
-            manager.sMessageBox("无效的身份识别码！", "error")
+            Message.showMessage("无效的身份识别码！", "error")
             self.le_pivkey.clear()
             return
         else:
-            manager.sMessageBox("认证成功！请重启软件。", "info")
+            Message.showMessage("认证成功！请重启软件。", "success")
             self.close()
 
         cfg["PIV"]["PIV_KEY"] = piv_key
@@ -1648,7 +1648,7 @@ def begin():
         else:
             change_log_level(logging.INFO)
         if start_check():
-            manager.sMessageBox("脚本已启动！正在运行中···", 'info')
+            Message.showMessage("脚本已启动！正在运行中···", 'success')
             screen_age()
             begin_state = True
             try:
@@ -1706,7 +1706,7 @@ def kill():
         begin_state = False
         event.set()
         log.info(f"结束脚本····\n")
-        manager.sMessageBox("脚本已停止！", 'info')
+        Message.showMessage("脚本已停止！", 'info')
         log_view.thread.stop()
         # 等待线程安全退出
         log_view.thread.wait()
@@ -2017,7 +2017,7 @@ def move_window(hwnd, target_x, target_y):
         return True
     except Exception as e:
         log.warning(f"移动窗口到新的位置失败：{e}")
-        manager.sMessageBox(f"尝试以管理员权限运行脚本。", 'error')
+        Message.showMessage(f"尝试以管理员权限运行脚本。", 'error')
         return False
 
 
@@ -2280,12 +2280,12 @@ def img_ocr(x1, y1, x2, y2, sum=128) -> str:
     """OCR识别图像，返回字符串
     :return: string"""
     if hwnd == 0:
-        manager.sMessageBox('未检测到游戏窗口！', 'warning')
+        Message.showMessage('未检测到游戏窗口！', 'warning')
         return ""
     result = ""
     image = screenshot(hwnd)
     if image is None:
-        manager.sMessageBox('无效的截图区域，游戏或已崩溃！', 'error')
+        Message.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
         log.warning(f"截图失败，无效的截图区域！")
         kill()
         return result
@@ -2439,7 +2439,7 @@ def disconnect_confirm(sum=120) -> None:
 
     image = screenshot(hwnd)
     if image is None:
-        manager.sMessageBox('无效的截图区域，游戏或已崩溃！', 'error')
+        Message.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
         log.warning(f"截图失败，无效的截图区域！")
         kill()
         return
@@ -2837,7 +2837,7 @@ def start_check() -> bool:
     if eq(hwnd, 0):
         message = "未检测到游戏窗口，请先启动游戏！" if lang == "chinese" else \
             "The game window was not detected. Please start the game first!"
-        manager.sMessageBox(message, "warning")
+        Message.showMessage(message, "warning")
         return False
     else:
         real_screen_width, real_screen_height, _ = get_screen_size()
@@ -2848,33 +2848,33 @@ def start_check() -> bool:
         if real_screen_width >= 1920 and real_screen_height >= 1080 and width != 1920 and height != 1080 and self_defined_args['匹配阶段的识别范围'][2] == 1920 and self_defined_args['匹配阶段的识别范围'][3] == 1080:
             message = f"当前正使用默认配置，请将游戏窗口调整为<1920×1080> 分辨率，当前分辨率为<{width}×{height}>" if lang == "chinese" else \
                 f"Currently using the default configuration, please adjust the game window to <1920×1080> resolution, the current resolution is <{width}×{height}>"
-            manager.sMessageBox(message, "warning", 7000)
+            Message.showMessage(message, "warning", 7000)
             return False
 
     # 判断阵营选择
     if not dbdWindowUi.rb_killer.isChecked() and not dbdWindowUi.rb_survivor.isChecked():
         message = "请选择阵营！" if lang == "chinese" else "Please select the camp!"
-        manager.sMessageBox(message, "warning")
+        Message.showMessage(message, "warning")
         return False
 
     # 判断行为模式选择
     if (not dbdWindowUi.rb_fixed_mode.isChecked() and not dbdWindowUi.rb_random_mode.isChecked()
             and dbdWindowUi.rb_killer.isChecked()):
         message = "请选择行为模式！" if lang == "chinese" else "Please select the mode!"
-        manager.sMessageBox(message, "warning")
+        Message.showMessage(message, "warning")
         return False
 
     # 判断角色选择是否规范
     if (not custom_select.select_killer_lst and cfg.getboolean("CPCI", "rb_killer")
             and not cfg.getboolean("SEKI", "usefile")):
         message = "至少选择一个屠夫！" if lang == "chinese" else "Choose at least one killer!"
-        manager.sMessageBox(message, "warning")
+        Message.showMessage(message, "warning")
         return False
 
     # 使用外部文件时的判断
     if eq(os.path.getsize(CUSTOM_KILLER_PATH), 0) and cfg.getboolean("SEKI", "usefile"):
         message = "外部文件至少写入一个屠夫！" if lang == "chinese" else "External files are written to at least one killer!"
-        manager.sMessageBox(message, "warning")
+        Message.showMessage(message, "warning")
         return False
     
     if not move_window(hwnd, 0, 0):
@@ -3369,7 +3369,7 @@ if __name__ == '__main__':
 
     # 实例声明
     MControl = MouseController(hwnd)
-    manager = NotificationManager()
+    Message = NotificationManager()
     custom_command = ActionExecutor(CUSTOM_COMMAND_PATH, hwnd)
     log_view = LogView(LOG_PATH)
     hotkey_listener = HotkeyListener()
@@ -3407,7 +3407,7 @@ if __name__ == '__main__':
 
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
-        check_update('V2.8.3')
+        check_update('V2.8.4')
     
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()

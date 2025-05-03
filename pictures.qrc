@@ -55,4 +55,11 @@
   <qresource prefix="trans">
     <file>picture/transEN.qm</file>
   </qresource>
+  <qresource prefix="resources">
+    <file>picture/ic_fluent_dismiss_circle_filled.svg</file>
+    <file>picture/ic_fluent_dismiss_regular.svg</file>
+    <file>picture/ic_fluent_info_filled.svg</file>
+    <file>picture/ic_fluent_warning_filled.svg</file>
+    <file>picture/ic_fluent_checkmark_circle_filled.svg</file>
+  </qresource>
 </RCC>

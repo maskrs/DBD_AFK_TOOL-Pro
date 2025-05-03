@@ -1,6 +1,9 @@
 import ctypes
 import time
-import pyautogui
+import pydirectinput
+
+# 初始化pydirectinput
+pydirectinput.FAILSAFE = False
 
 # 定义Windows API函数
 ClientToScreen = ctypes.windll.user32.ClientToScreen
@@ -62,9 +65,9 @@ class MouseController:
         screen_x, screen_y = self.client_to_screen(relative_x, relative_y)
         if screen_x is not None and screen_y is not None:
             try:
-                pyautogui.moveTo(x=screen_x, y=screen_y)
-            except pyautogui.FailSafeException:
-                pyautogui.moveTo(0, 0)
+                pydirectinput.moveTo(x=screen_x, y=screen_y)
+            except Exception:
+                pydirectinput.moveTo(0, 0)
 
     def moveclick(self, relative_x, relative_y, delay: float = 0, click_delay: float = 0, times: int = 1, interval: float = 0.0):
         """
@@ -79,11 +82,14 @@ class MouseController:
         screen_x, screen_y = self.client_to_screen(relative_x, relative_y)
         if screen_x is not None and screen_y is not None:
             try:
-                pyautogui.moveTo(x=screen_x, y=screen_y)
-            except pyautogui.FailSafeException:
-                pyautogui.moveTo(0, 0)
+                pydirectinput.moveTo(x=screen_x, y=screen_y)
+            except Exception:
+                pydirectinput.moveTo(0, 0)
             time.sleep(delay)
-            pyautogui.click(clicks=times, interval=interval)
+            for _ in range(times):
+                pydirectinput.click()
+                if interval > 0 and _ < times - 1:
+                    time.sleep(interval)
             time.sleep(click_delay)
 
     @staticmethod
@@ -91,5 +97,5 @@ class MouseController:
         """
         获取当前鼠标在屏幕上的坐标
         """
-        return pyautogui.position()
+        return pydirectinput.position()
 
