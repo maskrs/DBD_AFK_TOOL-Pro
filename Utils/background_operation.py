@@ -1,5 +1,5 @@
 import ctypes
-import pynput
+import pydirectinput
 from ctypes import byref, sizeof
 from ctypes import wintypes
 from PIL import Image  # pillow == 9.3.0
@@ -7,131 +7,155 @@ from PIL import ImageGrab
 from PIL import UnidentifiedImageError
 from PyQt5.QtGui import QImage
 
-keyboard = pynput.keyboard.Controller()
-mouse = pynput.mouse.Controller()
+# 初始化pydirectinput
+pydirectinput.FAILSAFE = False
+
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
 
 
+# 虚拟按键码映射
 VkCode = {
-    "tab": pynput.keyboard.Key.tab,  # 0x09
-    "enter": pynput.keyboard.Key.enter,  # 0x0D
-    "backspace": pynput.keyboard.Key.backspace,  # 0x08
-    "shift": pynput.keyboard.Key.shift,  # 0x10
-    "control": pynput.keyboard.Key.ctrl,  # 0x11
-    "alt": pynput.keyboard.Key.alt,  # 0x12
-    "menu": pynput.keyboard.Key.menu,  # 0x12
-    "pause": pynput.keyboard.Key.pause,  # 0x13
-    "caps_lock": pynput.keyboard.Key.caps_lock,  # 0x14
-    "escape": pynput.keyboard.Key.esc,  # 0x1B
-    "space": pynput.keyboard.Key.space,  # 0x20
-    "end": pynput.keyboard.Key.end,  # 0x23
-    "home": pynput.keyboard.Key.home,  # 0x24
-    "left": pynput.keyboard.Key.left,  # 0x25
-    "up": pynput.keyboard.Key.up,  # 0x26
-    "right": pynput.keyboard.Key.right,  # 0x27
-    "down": pynput.keyboard.Key.down,  # 0x28
-    "print_screen": pynput.keyboard.Key.print_screen,  # 0x2C
-    "insert": pynput.keyboard.Key.insert,  # 0x2D
-    "delete": pynput.keyboard.Key.delete,  # 0x2E
-    "numpad0": pynput.keyboard.KeyCode.from_vk(96),  # 0x60
-    "numpad1": pynput.keyboard.KeyCode.from_vk(97),  # 0x61
-    "numpad2": pynput.keyboard.KeyCode.from_vk(98),  # 0x62
-    "numpad3": pynput.keyboard.KeyCode.from_vk(99),  # 0x63
-    "numpad4": pynput.keyboard.KeyCode.from_vk(100),  # 0x64
-    "numpad5": pynput.keyboard.KeyCode.from_vk(101),  # 0x65
-    "numpad6": pynput.keyboard.KeyCode.from_vk(102),  # 0x66
-    "numpad7": pynput.keyboard.KeyCode.from_vk(103),  # 0x67
-    "numpad8": pynput.keyboard.KeyCode.from_vk(104),  # 0x68
-    "numpad9": pynput.keyboard.KeyCode.from_vk(105),  # 0x69
-    "f1": pynput.keyboard.KeyCode.from_vk(112),  # 0x70
-    "f2": pynput.keyboard.KeyCode.from_vk(113),  # 0x71
-    "f3": pynput.keyboard.KeyCode.from_vk(114),  # 0x72
-    "f4": pynput.keyboard.KeyCode.from_vk(115),  # 0x73
-    "f5": pynput.keyboard.KeyCode.from_vk(116),  # 0x74
-    "f6": pynput.keyboard.KeyCode.from_vk(117),  # 0x75
-    "f7": pynput.keyboard.KeyCode.from_vk(118),  # 0x76
-    "f8": pynput.keyboard.KeyCode.from_vk(119),  # 0x77
-    "f9": pynput.keyboard.KeyCode.from_vk(120),  # 0x78
-    "f10": pynput.keyboard.KeyCode.from_vk(121),  # 0x79
-    "f11": pynput.keyboard.KeyCode.from_vk(122),  # 0x7A
-    "f12": pynput.keyboard.KeyCode.from_vk(123),  # 0x7B
-    "lshift": pynput.keyboard.Key.shift_l,  # 0xA0
-    "rshift": pynput.keyboard.Key.shift_r,  # 0xA1
-    "lcontrol": pynput.keyboard.Key.ctrl_l,  # 0xA2
-    "rcontrol": pynput.keyboard.Key.ctrl_r,  # 0xA3
-    "lalt": pynput.keyboard.Key.alt_l,  # 0xA4
-    "ralt": pynput.keyboard.Key.alt_r,  # 0xA5
+    "tab": "tab",
+    "enter": "enter", 
+    "backspace": "backspace",
+    "shift": "shift",
+    "control": "ctrl",
+    "alt": "alt", 
+    "menu": "alt",
+    "pause": "pause",
+    "caps_lock": "capslock",
+    "escape": "esc",
+    "space": "space",
+    "end": "end",
+    "home": "home",
+    "left": "left",
+    "up": "up", 
+    "right": "right",
+    "down": "down",
+    "print_screen": "printscreen",
+    "insert": "insert",
+    "delete": "delete",
+    # 数字键盘
+    "numpad0": "num0",
+    "numpad1": "num1", 
+    "numpad2": "num2",
+    "numpad3": "num3",
+    "numpad4": "num4",
+    "numpad5": "num5",
+    "numpad6": "num6", 
+    "numpad7": "num7",
+    "numpad8": "num8",
+    "numpad9": "num9",
+    # F键
+    "f1": "f1",
+    "f2": "f2",
+    "f3": "f3", 
+    "f4": "f4",
+    "f5": "f5",
+    "f6": "f6",
+    "f7": "f7",
+    "f8": "f8",
+    "f9": "f9",
+    "f10": "f10",
+    "f11": "f11",
+    "f12": "f12",
+    # 特殊键
+    "lshift": "shiftleft",
+    "rshift": "shiftright", 
+    "lcontrol": "ctrlleft",
+    "rcontrol": "ctrlright",
+    "lalt": "altleft",
+    "ralt": "altright"
 }
 
 MouseCode = {
-    "mouse_left": pynput.mouse.Button.left,
-    "mouse_right": pynput.mouse.Button.right,
-    "mouse_middle": pynput.mouse.Button.middle
+    "mouse_left": "left",     # 左键
+    "mouse_right": "right",   # 右键
+    "mouse_middle": "middle"  # 中键
 }
-
 
 def get_virtual_keycode(key: str):
     """根据按键名获取虚拟按键码
-
+    
     Args:
         key (str): 按键名
-
+        
     Returns:
-        int: 虚拟按键码
+        str: pydirectinput支持的按键名
     """
-    if key in VkCode:
-        return VkCode[key]
-    else:
-        return key
+    return VkCode.get(key, key)
 
 
 def get_virtual_mousecode(key: str):
+    """获取鼠标按键的映射值
+    Args:
+        key (str): 鼠标按键名称
+    Returns:
+        str: pydirectinput支持的鼠标按键值
+    """
     if key in MouseCode:
         return MouseCode[key]
-    else:
-        return None
+    return "left"  # 默认返回左键
 
 
 def key_down(key: str):
     """按下指定按键
-
+    
     Args:
         key (str): 按键名
     """
     try:
         vk_code = get_virtual_keycode(key)
-        keyboard.press(vk_code)
-    except AttributeError:
+        pydirectinput.keyDown(vk_code)
+    except Exception:
         pass
 
 
 def key_up(key: str):
     """放开指定按键
-
+    
     Args:
         key (str): 按键名
     """
     try:
         vk_code = get_virtual_keycode(key)
-        keyboard.release(vk_code)
-    except AttributeError:
+        pydirectinput.keyUp(vk_code)
+    except Exception:
         pass
 
 def mouse_down(key: str = "mouse_left"):
+    """按下鼠标按键
+    Args:
+        key (str): 鼠标按键名称,默认左键
+    """
     try:
-        mosue_code = get_virtual_mousecode(key)
-        mouse.press(mosue_code)
-    except AttributeError:
+        button = get_virtual_mousecode(key)
+        pydirectinput.mouseDown(button=button)
+    except Exception:
         pass
 
 def mouse_up(key: str = "mouse_left"):
+    """释放鼠标按键
+    Args:
+        key (str): 鼠标按键名称,默认左键
+    """
     try:
-        mosue_code = get_virtual_mousecode(key)
-        mouse.release(mosue_code)
-    except AttributeError:
+        button = get_virtual_mousecode(key)
+        pydirectinput.mouseUp(button=button)
+    except Exception:
         pass
 
+def py_sim(instr:str):
+    "模拟全选和粘贴"
+    if instr == "a":
+        pydirectinput.keyDown('ctrl')
+        pydirectinput.press('a')
+        pydirectinput.keyUp('ctrl')
+    elif instr == "v":
+        pydirectinput.keyDown('ctrl')
+        pydirectinput.press('v')
+        pydirectinput.keyUp('ctrl') 
 
 # 定义 BITMAPINFOHEADER 结构体
 class BITMAPINFOHEADER(ctypes.Structure):

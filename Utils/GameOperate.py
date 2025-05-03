@@ -119,8 +119,12 @@ def killer_ctrl(skill_key: str = 'lcontrol', skill_time: float = 4.3) -> None:
     """杀手ctrl技能释放
     :param skill_time: 技能释放时间
     :param skill_key: 释放技能的按键，默认 'lcontrol'"""
+    # 确保按键释放
+    key_up(skill_key)
+    time.sleep(0.1)
     key_down(skill_key)
-    time.sleep(skill_time)
+    for _ in range(skill_time*10):
+        time.sleep(0.1)
     key_up(skill_key)
 
 

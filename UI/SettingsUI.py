@@ -268,7 +268,7 @@ class Ui_SettingDialog(object):
         self.pb_help.setToolTip(_translate("SettingDialog", "<html><head/><body><p><span style=\" font-family:\'宋体\';\">工具的帮助教程</span></p></body></html>"))
         self.lb_doc.setText(_translate("SettingDialog", "说明文档："))
         self.label_2.setText(_translate("SettingDialog", "软件版本："))
-        self.lb_version.setText(_translate("SettingDialog", "     v2.8.3"))
+        self.lb_version.setText(_translate("SettingDialog", "     v2.8.4"))
         self.label.setText(_translate("SettingDialog", "<html><head/><body><p align=\"center\"><span style=\" font-size:6pt; font-weight:600;\">免责声明</span></p><p align=\"center\"><span style=\" font-size:7pt;\">本工具仅限学习交流使用，应在获取软件的24小时内删除。挂机行为存在被ban风险，使用本工具，风险自负，任何后果与本工具无关。</span></p><p><span style=\" font-size:7pt;\">Icons by </span><a href=\"https://icons8.com\"><span style=\" font-size:7pt; text-decoration: underline; color:#0000ff;\">Icons8</span></a></p></body></html>"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("SettingDialog", "关于"))
 import pictures_rc
