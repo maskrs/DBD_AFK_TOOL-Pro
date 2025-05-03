@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-from ast import List
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import atexit
 import copy
 import ctypes
@@ -864,6 +865,7 @@ class HotkeyListener:
         
     def start(self):
         """启动热键监听"""
+        self.running = True
         self.update_hotkeys()
         
     def update_hotkeys(self):
@@ -872,6 +874,9 @@ class HotkeyListener:
             # 先清除所有已注册的热键
             keyboard.unhook_all()
             
+            if not self.running:
+                return
+                
             # 获取转换后的热键配置
             formatted_hotkeys = convert_selected_hotkeys(self_defined_args)
             
@@ -887,7 +892,7 @@ class HotkeyListener:
                 if key_name in formatted_hotkeys and formatted_hotkeys[key_name]:
                     try:
                         hotkey = formatted_hotkeys[key_name][0]
-                        keyboard.add_hotkey(hotkey, action)
+                        keyboard.add_hotkey(hotkey, action, suppress=True)  # 添加suppress=True
                         self.current_hotkeys[key_name] = hotkey
                         log.debug(f"已注册热键: {key_name} -> {hotkey}")
                     except Exception as e:
@@ -901,6 +906,12 @@ class HotkeyListener:
         self.running = False
         keyboard.unhook_all()
         self.current_hotkeys.clear()
+    
+    def reset(self):
+        """重置热键监听"""
+        self.stop()
+        time.sleep(0.1)  # 添加短暂延迟
+        self.start()
 
 
 class Custom_select(QWidget, Ui_Custom_select):
@@ -1696,21 +1707,32 @@ def pause_game():
 
 def kill():
     """stop the script"""
-    global begin_state
+    global begin_state, stop_space, stop_action, index
     if begin_state:
         try:
-            # 播放WAV文件
             play_end.play()
         except SimpleaudioError:
             pass
+            
         begin_state = False
         event.set()
-        log.info(f"结束脚本····\n")
-        Message.showMessage("脚本已停止！", 'info')
+        
+        # 停止所有线程和监听
         log_view.thread.stop()
-        # 等待线程安全退出
         log_view.thread.wait()
         log_view.close()
+        
+        # 重置所有状态
+        stop_space = True 
+        stop_action = True
+        index = 0
+        custom_select.select_killer_lst.clear()
+        
+        # 完全重置热键监听
+        hotkey_listener.reset()
+        
+        log.info(f"结束脚本····\n")
+        Message.showMessage("脚本已停止！", 'info')
 
 
 def initialize():
@@ -1966,13 +1988,18 @@ def coordinate_transformation(original_x: int, original_y: Optional[int] = None)
 
 def auto_message() -> None:
     """对局结束后的自动留言"""
-    py.press('enter')
+    time.sleep(0.5)  # 等待游戏界面稳定
+    press_key('space')
+    time.sleep(0.1)  # 等待输入框打开
+    py_sim('a')  # 先全选清除现有内容
+    py.press('backspace')  # 删除现有内容
+    time.sleep(0.1)
     input_str = self_defined_args['赛后发送消息']
     pyperclip.copy(input_str)
-    py_sim( 'v')
-    time.sleep(0.1)
-    py.press('enter')
-    time.sleep(1)
+    py_sim('v')
+    time.sleep(0.1)  # 等待粘贴完成
+    press_key('enter')
+    time.sleep(0.5)  # 等待发送完成
 
 
 def hall_tip():
@@ -2599,131 +2626,244 @@ def survivor_action() -> None:
         custom_command.execute_action_sequence("逃生者")
         return
 
-    press_key('w')
-    press_key('lshift')
-    act_direction = random_direction()
-    for i in range(10):
-        press_key(act_direction)
-        time.sleep(0.05)
-        release_key(act_direction)
-        time.sleep(0.7)
-    press_mouse()
-    time.sleep(2)
-    release_mouse()
-    release_key('lshift')
-    release_key('w')
+    try:
+        # 随机移动方向权重,增加前进概率
+        move_weights = {'w': 5, 'a': 1, 's': 1, 'd': 1}
+        
+        # 基础移动
+        act_move = random_movement(move_weights)
+        press_key(act_move)
+        
+        # 随机按住shift奔跑
+        if random.random() < 0.6:
+            press_key('lshift')
+            
+        # 随机转向
+        for _ in range(random.randint(3,8)):
+            act_direction = random_direction()
+            press_key(act_direction)
+            time.sleep(random.uniform(0.03, 0.15)) 
+            release_key(act_direction)
+            time.sleep(random.uniform(0.4, 1.2))
+            
+        # 随机技能使用
+        if random.random() < 0.4:
+            press_mouse()
+            time.sleep(random.uniform(0.5, 2))
+            release_mouse()
+            
+        # 随机蹲下
+        if random.random() < 0.3:
+            press_key('lcontrol') 
+            time.sleep(random.uniform(0.3, 0.8))
+            release_key('lcontrol')
+            
+        # 随机释放所有按键
+        release_key('lshift')
+        release_key(act_move)
+        
+        # 随机暂停
+        time.sleep(random.uniform(0.1, 0.5))
+        
+    except Exception:
+        # 出错时确保释放所有按键
+        release_key('w')
+        release_key('lshift')
+        release_key('lcontrol')
+        release_mouse()
 
 
 def killer_action() -> None:
-    """killer integral action"""
-    # 随版本更改，适配不同的屠夫
-    # 可使用ctrl技能的角色
+    """杀手通用动作"""
+    
+    # 检查列表是否为空
+    if not custom_select.select_killer_lst:
+        log.warning("杀手列表为空")
+        return
+    
+    # 配置技能角色列表
     ctrl_lst_cn = ["医生", "梦魇", "小丑", "魔王", "连体婴", "影魔", "白骨商人", "好孩子", "未知恶物", "巫妖"]
-    # 使用右键+左键释放技能的角色
     need_lst_cn = ["门徒", "魔王", "死亡枪手", "骗术师", "NEMESIS", "地狱修士", "艺术家", "影魔", "奇点", "操纵者",
-                   "好孩子", "未知恶物", "巫妖", "黑暗之主", "训犬师"]
+                "好孩子", "未知恶物", "巫妖", "黑暗之主", "训犬师"]
     ctrl_lst_en = ["DOCTOR", "NIGHTMARE", "CLOWN", "DEMOGORGON", "TWINS", "DREDGE", "SKULL MERCHANT", "GOOD GUY",
-                   "UNKNOWN", "LICH"]
+                "UNKNOWN", "LICH"]
     need_lst_en = ["PIG", "DEMOGORGON", "DEATHSLINGER", "TRICKSTER", "NEMESIS",
-                   "CENOBITE", "ARTIST", "DREDGE", "SINGULARITY", "MASTERMIND", "GOOD GUY", "UNKNOWN",
-                   "LICH", "DARK LORD", "HOUNDMASTER"]
-    ctrl_lst = []
-    need_lst = []
-    if cfg.getboolean("UPDATE", "rb_chinese"):
-        ctrl_lst = ctrl_lst_cn
-        need_lst = need_lst_cn
-    elif cfg.getboolean("UPDATE", "rb_english"):
-        ctrl_lst = ctrl_lst_en
-        need_lst = need_lst_en
-    # 防止下标越界
-    killer_num = len(custom_select.select_killer_lst)
-    if ge(index - 1, 0):  # index == character_num_index 更改名称
-        killer_num = index - 1
-    else:
-        killer_num -= 1
+                "CENOBITE", "ARTIST", "DREDGE", "SINGULARITY", "MASTERMIND", "GOOD GUY", "UNKNOWN",
+                "LICH", "DARK LORD", "HOUNDMASTER"]
+    
+    # 根据语言选择列表
+    ctrl_lst = ctrl_lst_cn if cfg.getboolean("UPDATE", "rb_chinese") else ctrl_lst_en
+    need_lst = need_lst_cn if cfg.getboolean("UPDATE", "rb_chinese") else need_lst_en
+    
+    # 获取当前角色
+    try:
+        killer_num = index - 1 if ge(index - 1, 0) else len(custom_select.select_killer_lst) - 1
+        if killer_num < 0 or killer_num >= len(custom_select.select_killer_lst):
+            log.warning(f"无效的杀手索引: {killer_num}")
+            return
+            
+        current_killer = custom_select.select_killer_lst[killer_num]
+    except IndexError:
+        log.error(f"获取杀手信息失败: 索引 {killer_num} 超出范围")
+        return
 
     try:
         # 执行自定义命令
         if cfg.getboolean("CUCOM", "cb_customcommand"):
-            custom_command.execute_action_sequence(custom_select.select_killer_lst[killer_num])
+            custom_command.execute_action_sequence(current_killer)
             if custom_command.common_actions or custom_command.current_character_match:
                 return
     except IndexError:
         print(f"下标越界···{killer_num}")
+        return
 
     try:
-        press_key('w')
-        if eq(custom_select.select_killer_lst[killer_num], "枯萎者") or eq(
-                custom_select.select_killer_lst[killer_num], "BLIGHT"):
-            release_key('w')
-            for _ in range(5):
-                act_move = random_movement()
-                press_key(act_move)
-                act_direction = random_direction()
+        # 基础移动
+        move_weights = {'w': 5, 'a': 1, 's': 1, 'd': 1}  # 前进权重更大
+        act_move = random_movement(move_weights)
+        press_key(act_move)
+        
+        # 特殊角色处理
+        if current_killer in ["枯萎者", "BLIGHT"]:
+            # 枯萎者冲刺移动模式
+            time.sleep(random.uniform(0.5, 1.0))  # 先移动一小段时间
+            
+            for _ in range(random.randint(4,5)):
                 press_mouse('right')
-                time.sleep(0.05)
-                release_mouse('right')
-                time.sleep(0.7)
+                time.sleep(random.uniform(0.03, 0.08))
+                release_mouse('right') 
+                time.sleep(random.uniform(0.5, 0.8))
+                
+                act_direction = random_direction()
                 press_key(act_direction)
-                time.sleep(0.3)
+                time.sleep(random.uniform(0.2, 0.4))
                 release_key(act_direction)
-                release_key(act_move)
-        elif eq(custom_select.select_killer_lst[killer_num], "怨灵") or eq(
-                custom_select.select_killer_lst[killer_num], "SPIRIT"):
-            release_key('w')
-            act_move = random_movement()
-            press_key(act_move)
-            act_direction = random_direction()
+                
+                # 冲刺后短暂移动
+                time.sleep(random.uniform(0.3, 0.6))
+
+        elif current_killer in ["怨灵", "SPIRIT"]:
+            # 怨灵灵视移动模式
+            time.sleep(random.uniform(0.8, 1.2))  # 先移动一段时间
+            
             press_mouse('right')
-            time.sleep(3)
+            time.sleep(random.uniform(2.5, 3.5))
+            act_direction = random_direction() 
             press_key(act_direction)
-            time.sleep(0.3)
+            time.sleep(random.uniform(0.2, 0.4))
             release_key(act_direction)
-            time.sleep(5)
-            release_key(act_move)
+            time.sleep(random.uniform(4.5, 5.5))
             release_mouse('right')
-        elif eq(custom_select.select_killer_lst[killer_num], "食尸鬼") or eq(
-                custom_select.select_killer_lst[killer_num], "GHOUL"):
-            press_key('w')
+            
+            # 灵视后继续移动
+            time.sleep(random.uniform(0.5, 1.0))
+
+        elif current_killer in ["食尸鬼", "GHOUL"]:
+            # 食尸鬼跳跃移动攻击模式
+            time.sleep(random.uniform(0.6, 1.0))  # 先移动一段时间
+            
             press_mouse('right')
-            time.sleep(1)
+            time.sleep(random.uniform(0.8, 1.2))
             press_mouse()
             time.sleep(0.1)
             release_mouse()
             release_mouse('right')
+            
             for _ in range(2):
                 act_direction = random_direction()
-                press_key(act_direction)
-                time.sleep(0.7)
+                press_key(act_direction) 
+                time.sleep(random.uniform(0.6, 0.8))
                 press_mouse()
                 time.sleep(0.1)
                 release_mouse()
                 release_key(act_direction)
-            release_key('w')
-        elif custom_select.select_killer_lst[killer_num] in need_lst:
-            act_direction = random_direction()
-            for _ in range(5):
-                press_key(act_direction)
-                time.sleep(0.05)
-                release_key(act_direction)
-                time.sleep(0.7)
-            killer_skillclick()
-            if custom_select.select_killer_lst[killer_num] in ctrl_lst:
-                killer_ctrl()
-        else:
-            act_direction = random_direction()
-            for _ in range(5):
-                press_key(act_direction)
-                time.sleep(0.05)
-                release_key(act_direction)
-                time.sleep(0.7)
-            killer_skill()
-            if custom_select.select_killer_lst[killer_num] in ctrl_lst:
-                killer_ctrl()
-        release_key('w')
+                
+                # 攻击后短暂移动
+                time.sleep(random.uniform(0.4, 0.7))
 
-    except IndexError:
-        print(f"下标越界···{killer_num}")
+        else:
+           # 普通杀手行为 - 重新设计,增加随机性和多样化
+            action_patterns = [
+                {
+                    "move_time": random.uniform(2.0, 4.0),
+                    "turn_times": random.randint(2, 4),
+                    "turn_duration": random.uniform(0.1, 0.3),
+                    "attack_chance": 0.5,
+                    "skill_chance": 0.4,
+                    "ctrl_chance": 0.3 if current_killer in ctrl_lst else 0
+                },
+                {
+                    "move_time": random.uniform(1.5, 3.0), 
+                    "turn_times": random.randint(3, 5),
+                    "turn_duration": random.uniform(0.05, 0.2),
+                    "attack_chance": 0.4,
+                    "skill_chance": 0.3,
+                    "ctrl_chance": 0.2 if current_killer in ctrl_lst else 0
+                },
+                {
+                    "move_time": random.uniform(3.0, 5.0),
+                    "turn_times": random.randint(1, 3),
+                    "turn_duration": random.uniform(0.15, 0.35),
+                    "attack_chance": 0.6,
+                    "skill_chance": 0.5,
+                    "ctrl_chance": 0.4 if current_killer in ctrl_lst else 0
+                }
+            ]
+            
+            # 随机选择一个动作模式
+            pattern = random.choice(action_patterns)
+            
+            # 执行移动
+            time.sleep(pattern["move_time"])
+            
+            # 随机转向
+            for _ in range(pattern["turn_times"]):
+                direction = random_direction()
+                press_key(direction)
+                time.sleep(pattern["turn_duration"])
+                release_key(direction)
+                time.sleep(random.uniform(0.2, 0.5))
+            
+            # 技能使用
+            if random.random() < pattern["skill_chance"]:
+                if current_killer in need_lst:
+                    killer_skillclick()
+                else:
+                    killer_skill()
+                time.sleep(random.uniform(0.3, 0.8))
+            
+            # Ctrl技能
+            if random.random() < pattern["ctrl_chance"]:
+                killer_ctrl()
+                time.sleep(random.uniform(0.2, 0.6))
+            
+            # 攻击动作
+            if random.random() < pattern["attack_chance"]:
+                press_mouse()
+                time.sleep(random.uniform(0.1, 0.3))
+                release_mouse()
+                
+            # 随机小动作(增加自然度)
+            if random.random() < 0.3:
+                time.sleep(random.uniform(0.2, 0.5))
+                press_key(random_direction())
+                time.sleep(random.uniform(0.1, 0.3))
+                release_key(random_direction())
+        
+        # 随机暂停 
+        time.sleep(random.uniform(0.1, 0.5))
+        
+        # 释放按键
+        release_key(act_move)
+        
+    except Exception:
+        # 出错时确保释放所有按键
+        release_key('w')
+        release_key('a')
+        release_key('s') 
+        release_key('d')
+        release_mouse()
+        release_mouse('right')
 
 
 def killer_fixed_act() -> None:
@@ -2795,28 +2935,44 @@ def killer_fixed_act() -> None:
 def character_selection() -> None:
     """自选特定的角色轮换"""
     global index
-    log.info(f"执行角色选择···当前的角色为-->{custom_select.select_killer_lst[index]}")
-    MControl.moveclick(10, 10, 0.5)
-    MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1)
-    MControl.moveclick(self_defined_args['搜索输入框坐标'][0], self_defined_args['搜索输入框坐标'][1], 1)
-    input_str = custom_select.select_killer_lst[index]
-    if event.is_set():
+    
+    # 检查列表是否为空
+    if not custom_select.select_killer_lst:
+        log.warning("杀手列表为空")
         return
-    if not pause_event.is_set():
-        pause_event.wait()
-    pyperclip.copy(input_str)
-    py_sim('v')
-    time.sleep(0.1)
-
-    MControl.moveclick(self_defined_args['第一个角色坐标'][0], self_defined_args['第一个角色坐标'][1], 1, times=2,
-                       interval=1)
-    MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1, times=1,
-                       interval=1)
-
-    if index < len(custom_select.select_killer_lst):
-        index += 1
-        if index == len(custom_select.select_killer_lst):
+        
+    try:
+        if index >= len(custom_select.select_killer_lst):
             index = 0
+            
+        current_killer = custom_select.select_killer_lst[index]
+        log.info(f"执行角色选择···当前的角色为-->{current_killer}")
+        
+        MControl.moveclick(10, 10, 0.5)
+        MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1)
+        MControl.moveclick(self_defined_args['搜索输入框坐标'][0], self_defined_args['搜索输入框坐标'][1], 1)
+        
+        if event.is_set():
+            return
+        if not pause_event.is_set():
+            pause_event.wait()
+            
+        pyperclip.copy(current_killer)
+        py_sim('v')
+        time.sleep(0.1)
+
+        MControl.moveclick(self_defined_args['第一个角色坐标'][0], self_defined_args['第一个角色坐标'][1], 1, times=2,
+                          interval=1)
+        MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1, times=1,
+                          interval=1)
+
+        index += 1
+        if index >= len(custom_select.select_killer_lst):
+            index = 0
+            
+    except IndexError:
+        log.error(f"选择角色失败: 索引 {index} 超出范围")
+        index = 0
 
 
 def start_check() -> bool:
@@ -2927,8 +3083,13 @@ def afk() -> None:
                         break
                     if not pause_event.is_set():
                         pause_event.wait()
-                    MControl.moveclick(self_defined_args['开始游戏按钮的坐标'][0],
-                                       self_defined_args['开始游戏按钮的坐标'][1], 1)
+                    for _ in range(3):
+                        MControl.moveclick(self_defined_args['开始游戏按钮的坐标'][0],
+                                           self_defined_args['开始游戏按钮的坐标'][1], 1)
+                        time.sleep(0.5)
+                        if not starthall():
+                            break
+
                     MControl.moveclick(20, 689, 1, 5)  # 商城上空白
                     if not starthall():
                         matching = True
@@ -2977,8 +3138,13 @@ def afk() -> None:
                 stage_monitor.exit_stage()
                 log.info(f"第{circulate_number}次脚本循环---进入准备大厅···")
                 MControl.moveclick(10, 10, 1)
-                MControl.moveclick(self_defined_args['准备就绪按钮的坐标'][0],
-                                   self_defined_args['准备就绪按钮的坐标'][1], 1)
+                for _ in range(3):
+                    MControl.moveclick(self_defined_args['准备就绪按钮的坐标'][0],
+                                       self_defined_args['准备就绪按钮的坐标'][1], 1)
+                    time.sleep(0.5)
+                    if not readyhall():
+                        break
+
                 MControl.moveclick(20, 689, 1, 3)  # 商城上空白
                 if not readyhall():
                     ready_room = True
@@ -3045,17 +3211,23 @@ def afk() -> None:
                 stop_action = True  # 动作线程标志符
                 MControl.moveclick(10, 10, 1, 1)
                 # 删除动作线程的输入字符
-                py.press('enter')
-                time.sleep(0.5)
+                py.press('space')
                 py_sim( 'a')
-                time.sleep(0.5)
-                py.press('delete')
+                py.press('backspace')
                 # 判断是否开启留言
                 if (cfg.getboolean("CPCI", "cb_killer_do")
                         and cfg.getboolean("CPCI", "rb_killer")):
                     auto_message()
-                MControl.moveclick(self_defined_args['结算页继续按钮坐标'][0],
-                                   self_defined_args['结算页继续按钮坐标'][1], 0.5, 1)  # return hall
+                # 多次尝试点击继续按钮
+                for _ in range(3):
+                    MControl.moveclick(
+                        self_defined_args['结算页继续按钮坐标'][0],
+                        self_defined_args['结算页继续按钮坐标'][1],
+                        delay=0.3,
+                        click_delay=1
+                    )
+                    if not gameover():
+                        break
                 MControl.moveclick(10, 10, 1, 3)  # 避免遮挡
                 if not gameover():
                     game = True
