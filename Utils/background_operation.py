@@ -146,6 +146,16 @@ def mouse_up(key: str = "mouse_left"):
     except Exception:
         pass
 
+def py_sim(instr:str):
+    "模拟全选和粘贴"
+    if instr == "a":
+        pydirectinput.keyDown('ctrl')
+        pydirectinput.press('a')
+        pydirectinput.keyUp('ctrl')
+    elif instr == "v":
+        pydirectinput.keyDown('ctrl')
+        pydirectinput.press('v')
+        pydirectinput.keyUp('ctrl') 
 
 # 定义 BITMAPINFOHEADER 结构体
 class BITMAPINFOHEADER(ctypes.Structure):

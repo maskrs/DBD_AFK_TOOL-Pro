@@ -55,7 +55,7 @@ from UI.pyqt_notification import NotificationManager
 
 from Utils.GameOperate import (press_key, release_key, press_mouse, release_mouse, random_direction, random_movement, random_move, random_veer, killer_ctrl,
                                killer_skill, killer_skillclick)
-from Utils.background_operation import screenshot
+from Utils.background_operation import screenshot, py_sim
 from Utils.CustomAction import ActionExecutor
 from Utils.Client2ScreenOperate import MouseController
 
@@ -1969,7 +1969,7 @@ def auto_message() -> None:
     py.press('enter')
     input_str = self_defined_args['赛后发送消息']
     pyperclip.copy(input_str)
-    py.hotkey('ctrl', 'v')
+    py_sim( 'v')
     time.sleep(0.1)
     py.press('enter')
     time.sleep(1)
@@ -1983,11 +1983,11 @@ def hall_tip():
                 if event.is_set():
                     return
                 py.press('space')
-                py.hotkey('ctrl', 'a')
+                py_sim('a')
                 py.press('delete')
                 input_str = self_defined_args['人类发送消息']
                 pyperclip.copy(input_str)
-                py.hotkey('ctrl', 'v')
+                py_sim( 'v')
                 time.sleep(0.1)
                 py.press('enter')
                 time.sleep(15)
@@ -2791,6 +2791,7 @@ def killer_fixed_act() -> None:
     release_mouse()
     time.sleep(1)
 
+
 def character_selection() -> None:
     """自选特定的角色轮换"""
     global index
@@ -2804,7 +2805,7 @@ def character_selection() -> None:
     if not pause_event.is_set():
         pause_event.wait()
     pyperclip.copy(input_str)
-    py.hotkey('ctrl', 'v')
+    py_sim('v')
     time.sleep(0.1)
 
     MControl.moveclick(self_defined_args['第一个角色坐标'][0], self_defined_args['第一个角色坐标'][1], 1, times=2,
@@ -3046,7 +3047,7 @@ def afk() -> None:
                 # 删除动作线程的输入字符
                 py.press('enter')
                 time.sleep(0.5)
-                py.hotkey('ctrl', 'a')
+                py_sim( 'a')
                 time.sleep(0.5)
                 py.press('delete')
                 # 判断是否开启留言
