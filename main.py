@@ -3,6 +3,7 @@
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 import atexit
+import psutil
 import copy
 import ctypes
 import functools
@@ -21,6 +22,7 @@ import tkinter as tk
 import pyperclip
 import pytesseract
 import re
+import gc
 import requests
 import win32process
 import win32api
@@ -183,8 +185,18 @@ class DbdWindow(QMainWindow, Ui_MainWindow):
             json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
 
     def closeEvent(self, event):
-        # 在主窗口关闭时关闭所有通知
+        # 停止定时器
+        self.title_update_timer.stop()
+        
+        # 关闭通知
         Message.closeAllNotifications()
+        
+        # 确保热键监听停止
+        hotkey_listener.stop()
+        
+        # 停止所有运行的线程
+        if begin_state:
+            kill()
         event.accept()
 
 
@@ -463,23 +475,21 @@ class ShortcutRecorder(QObject):
     recordingComplete = pyqtSignal(str)  # 添加信号
     
     def __init__(self):
-        super().__init__()  # 调用父类初始化
+        super().__init__()
         self.recording = False
-        self.current_modifiers = []  # 记录当前按下的修饰键
+        self.current_modifiers = []
         self.trigger_key = None  
-        self.trigger_modifiers = []  # 保存触发键按下时的修饰键
-        self.hook_id = None  # 保存钩子ID，以便单独移除
+        self.trigger_modifiers = []
         self._callback = None
         self._target_widget = None
         # 连接信号到槽
         self.recordingComplete.connect(self._handle_recording_complete)
 
     def start_recording(self, callback=None, target_widget=None):
-        """启动录制
-        :param callback: 录制完成后的回调函数
-        :param target_widget: 目标输入框控件"""
+        """启动录制"""
         if self.recording:
             return
+            
         self.recording = True
         self.current_modifiers.clear()
         self.trigger_key = None 
@@ -494,7 +504,7 @@ class ShortcutRecorder(QObject):
             self._target_widget.setText("")
             self._target_widget.setFocus()
         
-        self.hook_id = keyboard.hook(self._on_event)
+        keyboard.hook(self._on_event)
 
     def _on_event(self, event):
         """处理按键事件"""
@@ -526,11 +536,11 @@ class ShortcutRecorder(QObject):
 
     def _handle_recording_complete(self, shortcut):
         if self._target_widget:
-            # 清除焦点和只读状态
             self._target_widget.clearFocus()  
             self._target_widget.setReadOnly(False)
             self._target_widget.setPlaceholderText("")
-
+            self._target_widget.setText(shortcut)
+    
         if self._callback:
             self._callback(shortcut)
 
@@ -539,9 +549,8 @@ class ShortcutRecorder(QObject):
         if not self.recording:
             return
 
-        # 防止重复触发
         self.recording = False
-
+        
         # 构建快捷键字符串
         shortcut = ""
         if self.trigger_modifiers and self.trigger_key:
@@ -555,9 +564,7 @@ class ShortcutRecorder(QObject):
         self.current_modifiers.clear()
         self.trigger_key = None
         self.trigger_modifiers = []
-        if self.hook_id is not None:
-            keyboard.unhook(self.hook_id)
-        self.hook_id = None
+        keyboard.unhook_all()
 
         # 发送信号
         self.recordingComplete.emit(shortcut)
@@ -833,49 +840,59 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
         widget.setText("")
         
         def on_complete(shortcut):
-            def update_ui():
-                widget.setReadOnly(False)
-                widget.setPlaceholderText("")
-                widget.setText(shortcut)
-                if shortcut:
-                    try:
-                        # 更新配置
-                        self_defined_args[key_name] = [shortcut]
+            if shortcut:
+                try:
+                    # 更新配置
+                    self_defined_args[key_name] = [shortcut]
+                    
+                    # 保存配置到文件
+                    with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
+                        json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
                         
-                        # 保存配置到文件
-                        with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
-                            json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
-                            
-                        # 重新注册热键
-                        hotkey_listener.update_hotkeys()
-                        log.debug(f"已更新热键: {key_name} -> {shortcut}")
-                        
-                    except Exception as e:
-                        log.error(f"保存热键配置失败: {e}")
-                        Message.showMessage("保存热键配置失败！", 'error')
-                        
-            QTimer.singleShot(0, update_ui)
-                
+                    # 重新注册热键
+                    hotkey_listener.start()  # 重启监听器以应用新热键
+                    log.debug(f"已更新热键: {key_name} -> {shortcut}")
+                    
+                except Exception as e:
+                    log.error(f"保存热键配置失败: {e}")
+                    Message.showMessage("保存热键配置失败！", 'error')
+                    
         self.shortcut_recorder.start_recording(callback=on_complete, target_widget=widget)
 
 class HotkeyListener:
     def __init__(self):
-        self.current_hotkeys = {}  # 存储当前注册的热键
+        self.current_hotkeys = {}
         self.running = True
         
     def start(self):
         """启动热键监听"""
-        self.running = True
-        self.update_hotkeys()
-        
+        try:
+            self.running = True
+            keyboard.unhook_all()  # 确保清除所有已存在的热键
+            self.current_hotkeys.clear()  # 清除旧的热键记录
+            self.update_hotkeys()
+            log.debug("热键监听器已启动") 
+        except Exception as e:
+            log.error(f"启动热键监听失败: {e}")
+            
+    def stop(self):
+        """停止热键监听"""
+        try:
+            self.running = False
+            keyboard.unhook_all()
+            self.current_hotkeys.clear()
+        except Exception as e:
+            log.error(f"停止热键监听失败: {e}")
+            
     def update_hotkeys(self):
         """更新热键注册"""
         try:
-            # 先清除所有已注册的热键
-            keyboard.unhook_all()
-            
             if not self.running:
                 return
+                
+            # 清除旧热键
+            keyboard.unhook_all()
+            self.current_hotkeys.clear()
                 
             # 获取转换后的热键配置
             formatted_hotkeys = convert_selected_hotkeys(self_defined_args)
@@ -892,7 +909,7 @@ class HotkeyListener:
                 if key_name in formatted_hotkeys and formatted_hotkeys[key_name]:
                     try:
                         hotkey = formatted_hotkeys[key_name][0]
-                        keyboard.add_hotkey(hotkey, action, suppress=True)  # 添加suppress=True
+                        keyboard.add_hotkey(hotkey, action, suppress=True)
                         self.current_hotkeys[key_name] = hotkey
                         log.debug(f"已注册热键: {key_name} -> {hotkey}")
                     except Exception as e:
@@ -900,19 +917,17 @@ class HotkeyListener:
                         
         except Exception as e:
             log.error(f"更新热键失败: {e}")
-
-    def stop(self):
-        """停止热键监听"""
-        self.running = False
-        keyboard.unhook_all()
-        self.current_hotkeys.clear()
-    
-    def reset(self):
-        """重置热键监听"""
-        self.stop()
-        time.sleep(0.1)  # 添加短暂延迟
-        self.start()
-
+            self.restart()
+            
+    def restart(self):
+        """重启热键监听器"""
+        try:
+            self.stop()
+            time.sleep(0.5)
+            self.start()
+            log.info("已重启热键监听器")
+        except Exception as e:
+            log.error(f"重启热键监听器失败: {e}")
 
 class Custom_select(QWidget, Ui_Custom_select):
     def __init__(self):
@@ -1402,23 +1417,45 @@ class CustomSelectKiller:
 
 class LogThread(QThread):
     new_data_signal = pyqtSignal(str)
-
     def __init__(self, log_file_path, parent=None):
         super().__init__(parent)
         self.log_file_path = log_file_path
         self.running = True
+        self._lock = threading.Lock()  # 添加线程锁
+        self._file = None
 
     def run(self):
-        with open(self.log_file_path, 'r', encoding='utf-8') as file:
-            file.seek(0, 2)  # Move to the end of the file
+        try:
+            with self._lock:
+                self._file = open(self.log_file_path, 'r', encoding='utf-8', errors='ignore')
+                self._file.seek(0, 2)
+                
             while self.running:
-                if not (line := file.readline()):
-                    time.sleep(0.5)
+                try:
+                    with self._lock:
+                        if not self._file:
+                            break
+                        if not (line := self._file.readline()):
+                            time.sleep(0.5)
+                            continue
+                        self.new_data_signal.emit(line)
+                except UnicodeDecodeError:
                     continue
-                self.new_data_signal.emit(line)
+        except Exception as e:
+            log.error(f"日志线程错误: {e}")
+        finally:
+            self.cleanup()
 
     def stop(self):
         self.running = False
+        self.cleanup()
+
+    def cleanup(self):
+        """清理资源"""
+        with self._lock:
+            if self._file:
+                self._file.close()
+                self._file = None
 
 
 class LogView(QMainWindow):
@@ -1577,7 +1614,32 @@ class GifButton(QObject):
                 self.button.setIcon(self.default_icon)
         return super().eventFilter(obj, event)
 
+class MemoryMonitor(threading.Thread):
+    def __init__(self):
+        super().__init__(daemon=True)
+        self._running = True
+        self._lock = threading.Lock()
 
+    def run(self):
+        process = psutil.Process()
+        while self._running:
+            try:
+                with self._lock:
+                    if not self._running:
+                        break
+                    memory_info = process.memory_info()
+                    if memory_info.rss > 500 * 1024 * 1024:  # 超过500MB
+                        log.warning(f"内存使用过高: {memory_info.rss/1024/1024:.1f}MB，即将自动清除…")
+                        gc.collect()  # 强制垃圾回收
+                time.sleep(60)
+            except Exception as e:
+                log.error(f"内存监控错误: {e}")
+                break
+    
+    def stop_monitoring(self):
+        """停止监控线程"""
+        with self._lock:
+            self._running = False
 
 class Stage:
     def __init__(self):
@@ -1604,13 +1666,13 @@ class Stage:
                 self.long_stay_switch = True
                 self.log_recorded = True
                 MControl.moveclick(10, 10)
-                log.info(f"在'{self.stage_name}'阶段停留时间过长，触发BV循环")
+                log_script("info", f"在'{self.stage_name}'阶段停留时间过长，触发BV循环")
 
     def exit_stage(self):
         """检测到即视为离开阶段，并重置计时开关"""
         self.entry_time = None  # 重置进入时间
         if self.long_stay_switch:
-            log.info(f"成功！BV循环已关闭。")
+            log_script("info", f"成功！BV循环已关闭。")
         self.long_stay_switch = False
         self.log_recorded = False
     
@@ -1624,12 +1686,12 @@ def game_stage_redress(game_stage):
             MControl.moveclick(self_defined_args['开始游戏按钮的坐标'][0], 
                                self_defined_args['开始游戏按钮的坐标'][1], 1)
             MControl.moveclick(20, 689, 1, 3)  # 商城上空白
-            log.debug(f"当前实际为匹配阶段，正在尝试纠正阶段紊乱！")
+            log_script("debug", f"当前实际为匹配阶段，正在尝试纠正阶段紊乱！")
         elif readyhall() and game_stage != "准备":
             MControl.moveclick(self_defined_args['准备就绪按钮的坐标'][0], 
                                self_defined_args['准备就绪按钮的坐标'][1], 1)
             MControl.moveclick(20, 689, 1, 3)  # 商城上空白
-            log.debug(f"当前实际为准备阶段，正在尝试纠正阶段紊乱！")
+            log_script("debug", f"当前实际为准备阶段，正在尝试纠正阶段紊乱！")
         elif gameover() and game_stage != "结束":
             # 判断段位重置
             if season_reset():
@@ -1644,16 +1706,38 @@ def game_stage_redress(game_stage):
             MControl.moveclick(self_defined_args['结算页继续按钮坐标'][0], 
                                self_defined_args['结算页继续按钮坐标'][1], 0.5, 1)  # return hall
             MControl.moveclick(10, 10, 1, 3)  # 避免遮挡
-            log.debug(f"当前实际为结束阶段，正在尝试纠正阶段紊乱！")
+            log_script("debug", f"当前实际为结束阶段，正在尝试纠正阶段紊乱！")
         time.sleep(60)
 
+def log_script(level: str, message: str) -> None:
+    """受控的日志记录
+    
+    Args:
+        level: 日志级别(debug/info/warning/error/critical)
+        message: 日志消息
+    """
+    if not logging_enabled:
+        return
+        
+    level_map = {
+        'debug': log.debug,
+        'info': log.info,
+        'warning': log.warning, 
+        'error': log.error,
+        'critical': log.critical
+    }
+    
+    log_func = level_map.get(level.lower(), log.info)
+    log_func(message)
 
 def begin():
     """start the script"""
-    global begin_state
+    global begin_state, logging_enabled
     if not begin_state:
         open(LOG_PATH, 'w').close()
         save_cfg()
+        # 启用脚本日志记录
+        logging_enabled = True
         if dbdWindowUi.cb_detailed_log.isChecked():
             change_log_level(logging.DEBUG)
         else:
@@ -1688,7 +1772,7 @@ def pause_game():
                 play_pau.play()
             except SimpleaudioError:
                 pass
-            log.info(f"脚本已暂停")
+            log_script("info", f"脚本已暂停")
             pause = True
             pause_event.clear()
         elif pause:
@@ -1697,7 +1781,7 @@ def pause_game():
                 play_res.play()
             except SimpleaudioError:
                 pass
-            log.info(f"脚本已恢复")
+            log_script("info", f"脚本已恢复")
             pause = False
             pause_event.set()
         try:
@@ -1707,7 +1791,7 @@ def pause_game():
 
 def kill():
     """stop the script"""
-    global begin_state, stop_space, stop_action, index
+    global begin_state, stop_space, stop_action, index, logging_enabled
     if begin_state:
         try:
             play_end.play()
@@ -1717,22 +1801,48 @@ def kill():
         begin_state = False
         event.set()
         
-        # 停止所有线程和监听
-        log_view.thread.stop()
-        log_view.thread.wait()
-        log_view.close()
+        try:
+            # 先停止所有线程
+            stop_space = True 
+            stop_action = True
+            
+            # 清除热键监听 
+            hotkey_listener.stop()
+            
+            # 停止日志查看
+            log_view.thread.stop()
+            log_view.thread.wait()
+            log_view.close()
+            
+            # 释放按键状态
+            release_all_keys()
+            
+            # 清理其他资源
+            index = 0
+            custom_select.select_killer_lst.clear()
+            gc.collect()
+            
+            # 最后重启热键监听
+            hotkey_listener.start()
+            
+        except Exception as e:
+            log.error(f"停止时出错: {e}")
         
-        # 重置所有状态
-        stop_space = True 
-        stop_action = True
-        index = 0
-        custom_select.select_killer_lst.clear()
-        
-        # 完全重置热键监听
-        hotkey_listener.reset()
-        
-        log.info(f"结束脚本····\n")
+        log.info("结束脚本····\n")
+        logging_enabled = False
         Message.showMessage("脚本已停止！", 'info')
+
+def release_all_keys():
+    """释放所有按键状态"""
+    release_key('w')
+    release_key('a')
+    release_key('s')
+    release_key('d')
+    release_key('lshift')
+    release_key('lcontrol') 
+    release_key('space')
+    release_mouse()
+    release_mouse('right')
 
 
 def initialize():
@@ -1923,16 +2033,29 @@ def notice(notice_now: str):
 
 
 def change_log_level(new_level):
-    """动态修改日志级别，
-    :param new_level: 日志级别:logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL"""
+    """动态修改日志级别"""
     global log, file_handler
-    if new_level == logging.DEBUG:
-        level = "『详细日志』"
-    elif new_level == logging.INFO:
-        level = "『信息日志』"
-    file_handler.setLevel(new_level)
-    log.setLevel(new_level)  # 设置记录器的日志级别
-    log.info(f'当前日志等级为：{level}')
+    try:
+        if new_level == logging.DEBUG:
+            level = "『详细日志』"
+        elif new_level == logging.INFO:
+            level = "『信息日志』"
+        
+        # 关闭旧的handler
+        if file_handler in log.handlers:
+            file_handler.close()
+            log.removeHandler(file_handler)
+            
+        # 创建新的handler    
+        file_handler = logging.FileHandler(LOG_PATH, encoding='utf-8', errors='ignore')
+        file_handler.setLevel(new_level)
+        file_handler.setFormatter(formatter)
+        log.addHandler(file_handler)
+        
+        log.setLevel(new_level)
+        log.info(f'当前日志等级为：{level}')
+    except Exception as e:
+        print(f"修改日志级别失败: {e}")
 
 
 def close_logger():
@@ -1993,11 +2116,12 @@ def auto_message() -> None:
     time.sleep(0.1)  # 等待输入框打开
     py_sim('a')  # 先全选清除现有内容
     py.press('backspace')  # 删除现有内容
-    time.sleep(0.1)
+    time.sleep(0.5)
     input_str = self_defined_args['赛后发送消息']
     pyperclip.copy(input_str)
+    time.sleep(1)
     py_sim('v')
-    time.sleep(0.1)  # 等待粘贴完成
+    time.sleep(1)  # 等待粘贴完成
     press_key('enter')
     time.sleep(0.5)  # 等待发送完成
 
@@ -2275,7 +2399,7 @@ def ocr_range_inspection(identification_key: str,
 
             # 调用img_ocr函数，传入坐标和二值化阈值
             ocr_result = ocr_func(x1, y1, x2, y2, sum=threshold)
-            log.debug(f"{name}.OCR 识别内容为：{ocr_result}")
+            log_script("debug", f"{name}.OCR 识别内容为：{ocr_result}")
 
             if any(keyword in ocr_result for keyword in keywords):
 
@@ -2294,7 +2418,7 @@ def ocr_range_inspection(identification_key: str,
                 if new_threshold < 30:  # 确保不低于停止值
                     new_threshold = threshold_high
                 self_defined_args[min_sum_name][0] = new_threshold
-                log.debug(f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
+                log_script("debug", f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
 
             return False
 
@@ -2313,7 +2437,7 @@ def img_ocr(x1, y1, x2, y2, sum=128) -> str:
     image = screenshot(hwnd)
     if image is None:
         Message.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
-        log.warning(f"截图失败，无效的截图区域！")
+        log_script("warning", f"截图失败，无效的截图区域！")
         kill()
         return result
 
@@ -2467,7 +2591,7 @@ def disconnect_confirm(sum=120) -> None:
     image = screenshot(hwnd)
     if image is None:
         Message.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
-        log.warning(f"截图失败，无效的截图区域！")
+        log_script("warning", f"截图失败，无效的截图区域！")
         kill()
         return
 
@@ -2513,7 +2637,7 @@ def disconnect_confirm(sum=120) -> None:
         # 确保临时文件被删除，防止内存泄露和磁盘空间占用
         os.unlink(temp_path)
 
-    log.debug(f"断线确认识别内容为：{result}\n")
+    log_script("debug", f"断线确认识别内容为：{result}\n")
 
     # 定义需要查找的字符串列表
     target_strings = self_defined_args["断线确认关键字"]
@@ -2539,7 +2663,7 @@ def reconnect() -> bool:
     :return: bool -->TRUE
     """
     global stop_space, stop_action
-    log.info(f"检测到游戏断线，进入重连···")
+    log_script("info", f"检测到游戏断线，进入重连···")
     time.sleep(1)
     stop_space = True  # 自动空格线程标志符
     stop_action = True  # 动作线程标志符
@@ -2551,11 +2675,11 @@ def reconnect() -> bool:
 
     # 检测以判断断线情况
     if starthall() or readyhall():  # 小退
-        log.info(f"重连完成···类型：错误代码")
+        log_script("info", f"重连完成···类型：错误代码")
         return True
     elif gameover():  # 意味着不在大厅
         MControl.moveclick(self_defined_args['结算页继续按钮坐标'][0], self_defined_args['结算页继续按钮坐标'][1])
-        log.info(f"重连完成···类型：错误代码")
+        log_script("info", f"重连完成···类型：错误代码")
         return True
     else:  # 大退
 
@@ -2579,22 +2703,22 @@ def reconnect() -> bool:
             if news():
                 MControl.moveclick(self_defined_args['新内容关闭坐标'][0], self_defined_args['新内容关闭坐标'][1],
                                    click_delay=1)
-                log.info(f"重连---关闭新闻···")
+                log_script("info", f"重连---关闭新闻···")
             # 判断每日祭礼
             if daily_ritual_main():
                 MControl.moveclick(self_defined_args['主页面祭礼关闭坐标'][0],
                                    self_defined_args['主页面祭礼关闭坐标'][1],
                                    click_delay=1)
-                log.info(f"重连---关闭每日祭礼···")
+                log_script("info", f"重连---关闭每日祭礼···")
             # 判断段位重置
             if season_reset():
                 MControl.moveclick(self_defined_args['段位重置按钮的坐标'][0],
                                    self_defined_args['段位重置按钮的坐标'][1],
                                    click_delay=1)
-                log.info(f"重连---关闭段位重置···")
+                log_script("info", f"重连---关闭段位重置···")
             # 是否重进主页面判断
             if mainjudge():
-                log.info(f"重连---正在返回匹配大厅···")
+                log_script("info", f"重连---正在返回匹配大厅···")
                 MControl.moveclick(self_defined_args['主页面开始坐标'][0], self_defined_args['主页面开始坐标'][1],
                                    1)  # 点击开始
                 # 通过阵营选择判断返回大厅
@@ -2613,7 +2737,7 @@ def reconnect() -> bool:
                 main_quit = True
             if starthall() or readyhall():
                 main_quit = True
-        log.info(f"重连完成···类型：断线")
+        log_script("info", f"重连完成···类型：断线")
         stage_mointor.exit_stage()
         return True
 
@@ -2678,7 +2802,7 @@ def killer_action() -> None:
     
     # 检查列表是否为空
     if not custom_select.select_killer_lst:
-        log.warning("杀手列表为空")
+        log_script("warning", "执行动作模组出错：杀手列表为空")
         return
     
     # 配置技能角色列表
@@ -2699,12 +2823,12 @@ def killer_action() -> None:
     try:
         killer_num = index - 1 if ge(index - 1, 0) else len(custom_select.select_killer_lst) - 1
         if killer_num < 0 or killer_num >= len(custom_select.select_killer_lst):
-            log.warning(f"无效的杀手索引: {killer_num}")
+            log_script("warning", f"无效的杀手索引: {killer_num}")
             return
             
         current_killer = custom_select.select_killer_lst[killer_num]
     except IndexError:
-        log.error(f"获取杀手信息失败: 索引 {killer_num} 超出范围")
+        log_script("error", f"获取杀手信息失败: 索引 {killer_num} 超出范围")
         return
 
     try:
@@ -2862,6 +2986,7 @@ def killer_action() -> None:
         release_key('a')
         release_key('s') 
         release_key('d')
+        release_key('lcontrol')
         release_mouse()
         release_mouse('right')
 
@@ -2938,7 +3063,7 @@ def character_selection() -> None:
     
     # 检查列表是否为空
     if not custom_select.select_killer_lst:
-        log.warning("杀手列表为空")
+        log_script("warning", "执行角色选择出错：杀手列表为空")
         return
         
     try:
@@ -2946,7 +3071,7 @@ def character_selection() -> None:
             index = 0
             
         current_killer = custom_select.select_killer_lst[index]
-        log.info(f"执行角色选择···当前的角色为-->{current_killer}")
+        log_script("info", f"执行角色选择···当前的角色为-->{current_killer}")
         
         MControl.moveclick(10, 10, 0.5)
         MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1)
@@ -2971,7 +3096,7 @@ def character_selection() -> None:
             index = 0
             
     except IndexError:
-        log.error(f"选择角色失败: 索引 {index} 超出范围")
+        log_script("error", f"选择角色失败: 索引 {index} 超出范围")
         index = 0
 
 
@@ -3066,7 +3191,7 @@ def afk() -> None:
             # 判断条件是否成立
             if starthall():
                 stage_monitor.exit_stage()
-                log.info(f"第{circulate_number}次脚本循环---进入匹配大厅···")
+                log_script("info", f"第{circulate_number}次脚本循环---进入匹配大厅···")
                 if cfg.getboolean("CPCI", "rb_killer"):
                     if eq(list_number, 1):
                         character_selection()
@@ -3094,7 +3219,7 @@ def afk() -> None:
                     if not starthall():
                         matching = True
                         game_stage = ""
-                        log.info(f"第{circulate_number}次脚本循环---开始匹配!")
+                        log_script("info", f"第{circulate_number}次脚本循环---开始匹配!")
             elif disconnect_check():
                 reconnection = reconnect()
                 matching = True
@@ -3136,7 +3261,7 @@ def afk() -> None:
 
             if readyhall():
                 stage_monitor.exit_stage()
-                log.info(f"第{circulate_number}次脚本循环---进入准备大厅···")
+                log_script("info", f"第{circulate_number}次脚本循环---进入准备大厅···")
                 MControl.moveclick(10, 10, 1)
                 for _ in range(3):
                     MControl.moveclick(self_defined_args['准备就绪按钮的坐标'][0],
@@ -3149,7 +3274,7 @@ def afk() -> None:
                 if not readyhall():
                     ready_room = True
                     game_stage = ""
-                    log.info(f"第{circulate_number}次脚本循环---准备完成!")
+                    log_script("info", f"第{circulate_number}次脚本循环---准备完成!")
             elif disconnect_check():
                 reconnection = reconnect()
                 ready_room = True
@@ -3184,7 +3309,7 @@ def afk() -> None:
         auto_space.start()
         auto_action.start()
         game = False
-        log.info(f"第{circulate_number}次脚本循环---进入对局···")
+        log_script("info", f"第{circulate_number}次脚本循环---进入对局···")
         game_stage = '结算'
         stage_monitor.enter_stage(game_stage)
         while not game:
@@ -3206,12 +3331,12 @@ def afk() -> None:
 
             if gameover():
                 stage_monitor.exit_stage()
-                log.info(f"第{circulate_number}次脚本循环---游戏结束···")
+                log_script("info", f"第{circulate_number}次脚本循环---游戏结束···")
                 stop_space = True  # 自动空格线程标志符
                 stop_action = True  # 动作线程标志符
                 MControl.moveclick(10, 10, 1, 1)
                 # 删除动作线程的输入字符
-                py.press('space')
+                py.press('enter')
                 py_sim( 'a')
                 py.press('backspace')
                 # 判断是否开启留言
@@ -3232,7 +3357,7 @@ def afk() -> None:
                 if not gameover():
                     game = True
                     game_stage = ""
-                    log.info(f"第{circulate_number}次脚本循环---正在返回匹配大厅···\n")
+                    log_script("info", f"第{circulate_number}次脚本循环---正在返回匹配大厅···\n")
                 elif disconnect_check():
                     reconnection = reconnect()
                     game = True
@@ -3258,21 +3383,27 @@ def afk() -> None:
             return
 
 def generate_random_name():
-    """生成更自然的应用程序名称"""
-    common_names = [
-        "Updater", "Service", "Helper", "Assistant", "Monitor", "Controller",
-        "Manager", "Config", "Sync", "Bridge", "Runtime", "Framework"
+    """生成更自然的进程名和窗口标题"""
+    # 扩充词库
+    processes = [
+        "Runtime", "Service", "Monitor", "Agent", "Helper",
+        "Launcher", "Manager", "Daemon", "Worker", "Handler"
     ]
-    company_names = [
-        "System", "Windows", "Microsoft", "Desktop", "User", "Client",
-        "Local", "Remote", "Network", "Security", "Platform", "Utils"
+    prefixes = [
+        "System", "Windows", "Microsoft", "Desktop", "Local", 
+        "Background", "Core", "App", "Client", "Host"
     ]
     
-    # 随机决定是否添加版本号
-    version = f" {random.randint(1,4)}.{random.randint(0,9)}" if random.random() > 0.7 else ""
-    
-    # 生成类似 "Windows Network Assistant 2.1" 的名称
-    name = f"{random.choice(company_names)} {random.choice(common_names)}{version}"
+    # 随机生成版本号
+    version = ""
+    if random.random() > 0.6:
+        major = random.randint(1,5)
+        minor = random.randint(0,9) 
+        build = random.randint(100,999)
+        version = f" {major}.{minor}.{build}"
+        
+    # 组合名称
+    name = f"{random.choice(prefixes)} {random.choice(processes)}{version}"
     return name
 
 def find_game_window():
@@ -3289,15 +3420,31 @@ def find_game_window():
     return hwnds[0] if hwnds else 0
 
 def anti_debug():
-    # 检测常见调试器
+    """增强的反调试检测"""
+    # 检测常见调试器 
     if ctypes.windll.kernel32.IsDebuggerPresent():
         sys.exit()
+        
     # 检测虚拟机环境
-    try:
-        ctypes.windll.LoadLibrary("SbieDll.dll")
-        sys.exit()
-    except:
-        pass
+    blacklist = [
+        "VBox", "VMware", "QEMU", "Xen",
+        "Sandbox", "SbieDll", "Wine"
+    ]
+    for dll in blacklist:
+        try:
+            ctypes.windll.LoadLibrary(f"{dll}.dll")
+            sys.exit() 
+        except:
+            pass
+            
+    # 检测调试工具进程
+    debug_tools = [
+        "ollydbg.exe", "x64dbg.exe", "windbg.exe",
+        "ida.exe", "ghidra.exe", "cheatengine.exe"
+    ]
+    for proc in psutil.process_iter(['name']):
+        if proc.info['name'].lower() in debug_tools:
+            sys.exit()
 
 def resource_path(relative_path):
     try:
@@ -3352,9 +3499,39 @@ def is_admin():
 def global_exception(exctype, value, traceback):
     logging.error("未捕获的异常", exc_info=(exctype, value, traceback))
 
+def cleanup_resources():
+    """程序退出时的资源清理"""
+    try: 
+        # 停止内存监控线程
+        if 'memory_monitor' in globals():
+            try:
+                memory_monitor.stop_monitoring()
+                memory_monitor.join(timeout=1.0)  # 等待线程结束，最多等待1秒
+            except Exception as e:
+                log.error(f"停止内存监控时出错: {e}")
+            
+        # 释放按键状态    
+        release_all_keys()
+        
+        # 关闭日志
+        close_logger()
+        
+        # 停止热键监听
+        try:
+            hotkey_listener.stop()
+        except Exception as e:
+            log.error(f"停止热键监听时出错: {e}")
+        
+        # 清理系统资源
+        gc.collect()
+        
+    except Exception as e:
+        log.error(f"清理资源时出错: {e}")
+    
 
 if __name__ == '__main__':
     anti_debug()  # 反调试
+    gc.enable()
     BASE_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
 
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -3537,7 +3714,7 @@ if __name__ == '__main__':
     log = logging.getLogger(__name__)  # 获取日志记录器对象
     log.setLevel(logging.INFO)  # 设置记录器的日志级别
     log.addHandler(file_handler)
-    atexit.register(close_logger)  # 程序退出时关闭日志
+    atexit.register(cleanup_resources)  # 程序退出时清理资源
     sys.excepthook = global_exception  # 全局未捕获异常捕获
 
     # 实例声明
@@ -3552,6 +3729,7 @@ if __name__ == '__main__':
     custom_select = CustomSelectKiller()
     stage_monitor = Stage()
     screen = QApplication.primaryScreen()
+    logging_enabled = True  # 脚本日志记录标志
     begin_state = False  # 开始状态
     index = 0  # 列表的下标
     game_stage = ""  # 游戏阶段
@@ -3566,6 +3744,9 @@ if __name__ == '__main__':
     pause_event = threading.Event()
     pause_event.set()
     tip = threading.Thread(target=hall_tip, daemon=True)
+    # 在主程序启动时创建监控线程
+    memory_monitor = MemoryMonitor()
+    memory_monitor.start()
     pytesseract.pytesseract.tesseract_cmd = OCR_PATH  # 配置OCR路径
 
     splash.show_message("正在检查通知...")
@@ -3580,7 +3761,7 @@ if __name__ == '__main__':
 
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
-        check_update('V2.8.4')
+        check_update('V2.8.5')
     
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()
