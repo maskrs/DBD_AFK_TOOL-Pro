@@ -123,7 +123,7 @@ def killer_ctrl(skill_key: str = 'lcontrol', skill_time: float = 4.3) -> None:
     key_up(skill_key)
     time.sleep(0.1)
     key_down(skill_key)
-    for _ in range(skill_time*10):
+    for _ in range(int(skill_time*10)):
         time.sleep(0.1)
     key_up(skill_key)
 

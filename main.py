@@ -1967,10 +1967,95 @@ def read_cfg():
         win32api.MessageBox(f"读取SDargs.json文件异常: {e}", "错误", win32con.MB_OK | win32con.MB_ICONWARNING)
 
 
+def get_repo_metadata(url: str) -> dict:
+    """获取仓库的元数据，包括描述和项目名称，保留原始HTML实体"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
+        }
+        
+        # 获取仓库页面HTML
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        html_content = response.text
+        
+        # 初始化结果字典
+        metadata = {
+            'description': '',
+            'project_name': ''
+        }
+        
+        # 1. 提取描述信息 - 直接从原始HTML中匹配
+        
+        # 方法1: 匹配meta标签中的原始内容（不处理实体）
+        description_match_meta = re.search(
+            r'<meta\s+[^>]*itemprop=[\'"]description[\'"][^>]*content=[\'"](.*?)[\'"]',
+            html_content,
+            re.DOTALL
+        )
+        if description_match_meta:
+            metadata['description'] = description_match_meta.group(1).strip()
+        
+        # 方法2: 匹配可见文本中的原始Description部分
+        if not metadata['description']:
+            description_match_text = re.search(
+                r'- \*\*Description\*\*:[\s\n]*(.*?)(?=[\n\r]+\s*-\s*\*\*|$)',
+                html_content,
+                re.DOTALL
+            )
+            if description_match_text:
+                # 直接使用匹配文本，不进行任何处理
+                metadata['description'] = description_match_text.group(1).strip()
+        
+        # 2. 提取项目名称 - 同样保留原始HTML实体
+        
+        # 方法1: 匹配meta标签中的原始内容
+        project_name_match_meta = re.search(
+            r'<meta\s+[^>]*property=[\'"]og:title[\'"][^>]*content=[\'"](.*?)[\'"]',
+            html_content,
+            re.DOTALL
+        )
+        if project_name_match_meta:
+            metadata['project_name'] = project_name_match_meta.group(1).strip()
+        
+        # 方法2: 匹配可见文本中的原始Project Name部分
+        if not metadata['project_name']:
+            project_name_match_text = re.search(
+                r'- \*\*Project Name\*\*:[\s\n]*(.*?)(?=[\n\r]+\s*-\s*\*\*|$)',
+                html_content,
+                re.DOTALL
+            )
+            if project_name_match_text:
+                # 直接使用匹配文本，不进行任何处理
+                metadata['project_name'] = project_name_match_text.group(1).strip()
+        
+        # 3. API后备方案（可选，如果需要）
+        if not metadata['description'] or not metadata['project_name']:
+            try:
+                api_response = requests.get(
+                    url.replace('gitee.com/', 'gitee.com/api/v5/repos/'),
+                    headers=headers,
+                    timeout=3
+                )
+                repo_info = api_response.json()
+                metadata['description'] = repo_info.get('description', metadata['description'])
+                metadata['project_name'] = repo_info.get('name', metadata['project_name'])
+            except:
+                pass  # API失败时不覆盖已有结果
+        
+        # 不进行任何HTML实体解码或清理
+        return metadata
+    
+    except Exception as e:
+        print(f"获取仓库元数据失败: {str(e)}")
+        return {'description': '', 'project_name': ''}
+
+
 def authorization(authorization_now: str):
     """check the authorization"""
-    html_str = requests.get('https://gitee.com/kioley/DBD_AFK_TOOL').content.decode()
-    authorization_new = re.search('title>(.*?)<', html_str, re.S).group(1)[21:]
+    html_str = get_repo_metadata("https://gitee.com/kioley/DBD_AFK_TOOL")
+    authorization_new = html_str['description']
     if ne(authorization_now, authorization_new):
         if cfg.getboolean("UPDATE", "rb_chinese"):
             win32api.MessageBox(0, "授权已过期", "授权失败", win32con.MB_OK | win32con.MB_ICONERROR)
@@ -1983,8 +2068,8 @@ def authorization(authorization_now: str):
 
 def check_update(ver_now: str):
     """check the update"""
-    html_str = requests.get('https://gitee.com/kioley/DBD_AFK_TOOL').content.decode()
-    ver_new = re.search('title>(.*?)<', html_str, re.S).group(1)[13:19]
+    html_str = get_repo_metadata("https://gitee.com/kioley/DBD_AFK_TOOL")
+    ver_new = html_str['project_name'][13:]
     if cfg.getboolean("UPDATE", "rb_chinese"):
         lang = 'chinese'
     elif cfg.getboolean("UPDATE", "rb_english"):
@@ -2025,9 +2110,10 @@ def check_ocr():
 
 def notice(notice_now: str):
     """take a message"""
-    html_str = requests.get('https://gitee.com/kioley/test-git').content.decode()
-    notice_new = re.search('title>(.*?)<', html_str, re.S).group(1)[0:8]
-    notice = re.search('title>(.*?)<', html_str, re.S).group(1)[9:]
+    # html_str = requests.get('https://gitee.com/kioley/test-git').content.decode()
+    html_str = get_repo_metadata("https://gitee.com/kioley/test-git")
+    notice_new = html_str['project_name']
+    notice = html_str['description']
     if ne(notice_now, notice_new):
         win32api.MessageBox(0, notice, "通知", win32con.MB_OK | win32con.MB_ICONINFORMATION)
 
@@ -3026,31 +3112,25 @@ def killer_fixed_act() -> None:
     # release_key('w')
 
     press_key('w')
-    press_mouse('right')
-    time.sleep(4.3)
-    release_mouse('right')
-    press_key('w')
+    killer_skill()
+    release_key('w')
     press_mouse()
     time.sleep(2)
     release_mouse()
     time.sleep(1)
     press_key('s')
     killer_ctrl()
-    press_key('s')
+    release_key('s')
     press_mouse()
     time.sleep(2)
     release_mouse()
     time.sleep(1)
     press_key('a')
-    press_mouse('right')
-    time.sleep(3)
-    release_mouse('right')
-    press_key('a')
+    killer_skill()
+    release_key('a')
     press_key('d')
-    press_mouse('right')
-    time.sleep(3)
-    release_mouse('right')
-    press_key('d')
+    killer_skill()
+    release_key('d')
     press_mouse()
     time.sleep(2)
     release_mouse()
@@ -3459,15 +3539,15 @@ def resource_path(relative_path):
 
 def sentry_ignore_error():
     """获取sentry的过滤列表"""
-    html_str = requests.get('https://gitee.com/kioley/sentryig').content.decode()
-    ignore_error = re.search('title>(.*?)<', html_str, re.S).group(1)[9:]
+    html_str = get_repo_metadata("https://gitee.com/kioley/sentryig")
+    ignore_error = html_str['description']
     ignore_error_list = [item.strip() for item in ignore_error.split(',')]
     return ignore_error_list
 
 
 def sentry_init(dsn1: str, dsn2: str):
-    html_str = requests.get('https://gitee.com/kioley/sentryit').content.decode()
-    sentry_dsn_check = re.search('title>(.*?)<', html_str, re.S).group(1)[9:]
+    html_str = get_repo_metadata("https://gitee.com/kioley/sentryit")
+    sentry_dsn_check = html_str['description']
     if sentry_dsn_check == '1':
         dsn = dsn1
     else:
