@@ -1,5 +1,4 @@
 # -*- mode: python ; coding: utf-8 -*-
-
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 import atexit
@@ -21,7 +20,9 @@ import pydirectinput as py
 import tkinter as tk
 import pyperclip
 import pytesseract
+from pytesseract import Output
 import re
+import numpy as np
 import gc
 import requests
 import win32process
@@ -585,9 +586,14 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             self.le_firstx: '第一个角色坐标',
             self.le_search_name: '搜索输入框坐标',
             self.le_skill_allocation: '装备配置按钮坐标',
-            self.le_allocation1: '装备配置1的坐标',
-            self.le_allocation2: '装备配置2的坐标',
-            self.le_allocation3: '装备配置3的坐标',
+            self.le_allocation: '装备预设按钮坐标',
+            self.le_allocation1: '装备预设1的坐标',
+            self.le_allocation2: '装备预设2的坐标',
+            self.le_allocation3: '装备预设3的坐标',
+            self.le_allocation4: '装备预设4的坐标',
+            self.le_allocation5: '装备预设5的坐标',
+            self.le_allocation6: '装备预设6的坐标',
+            self.le_allocation7: '装备预设7的坐标',
             self.le_play_area: '匹配阶段的识别范围',
             self.le_play_keywords: '匹配大厅识别关键字',
             self.le_playxy: '开始游戏按钮的坐标',
@@ -600,18 +606,6 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             self.le_over_keywords: '结算页识别关键字',
             self.le_over_continuexy: '结算页继续按钮坐标',
             self.le_over_binaryzation: '结算页二值化阈值',
-            self.le_orites_area: '结算页每日祭礼的识别范围',
-            self.le_orites_keywords: '结算页每日祭礼识别关键字',
-            self.le_overritesxy: '结算页祭礼完成坐标',
-            self.le_overrite_binaryzation: '结算页每日祭礼二值化阈值',
-            self.le_season_reset: '段位重置的识别范围',
-            self.le_sr_keywords: '段位重置识别关键字',
-            self.le_seasonresetxy: '段位重置按钮的坐标',
-            self.le_seasonreset_binaryzation: '段位重置二值化阈值',
-            self.le_dr_main: '主界面的每日祭礼识别范围',
-            self.le_drm_keywords: '主页面每日祭礼识别关键字',
-            self.le_main_ritesxy: '主页面祭礼关闭坐标',
-            self.le_mainrite_binaryzation: '主页面每日祭礼二值化阈值',
             self.le_mainjudge: '主页面的识别范围',
             self.le_mainjudge_keywords: '主页面识别关键字',
             self.le_main_startxy: '主页面开始坐标',
@@ -621,14 +615,9 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             self.le_discheck_binaryzation: '断线检测二值化阈值',
             self.le_dcwords: '断线确认关键字',
             self.le_dcconfirm_offset: '断线确认偏移量',
-            self.le_news: '新内容的识别范围',
-            self.le_news_binaryzation: '新内容二值化阈值',
-            self.le_new_keywords: '新内容识别关键字',
-            self.le_newsxy: '新内容关闭坐标',
             self.le_main_humanxy: '主页面逃生者坐标',
             self.le_main_killerxy: '主页面杀手坐标',
             self.le_rolexy: '角色选择按钮坐标',
-            self.le_evrewards: 'event_rewards',
         }
         self.shortcut_recorder = ShortcutRecorder()
 
@@ -679,9 +668,14 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             '暂停快捷键': (self.le_pause_key, 'setText'),
             '第一个角色坐标': (self.le_firstx, 'setText'),
             '装备配置按钮坐标': (self.le_skill_allocation, 'setText'),
-            '装备配置1的坐标': (self.le_allocation1, 'setText'),
-            '装备配置2的坐标': (self.le_allocation2, 'setText'),
-            '装备配置3的坐标': (self.le_allocation3, 'setText'),
+            '装备预设按钮坐标':(self.le_allocation, 'setText'),
+            '装备预设1的坐标': (self.le_allocation1, 'setText'),
+            '装备预设2的坐标': (self.le_allocation2, 'setText'),
+            '装备预设3的坐标': (self.le_allocation3, 'setText'),
+            '装备预设4的坐标': (self.le_allocation4, 'setText'),
+            '装备预设5的坐标': (self.le_allocation5, 'setText'),
+            '装备预设6的坐标': (self.le_allocation6, 'setText'),
+            '装备预设7的坐标': (self.le_allocation7, 'setText'),
             '搜索输入框坐标': (self.le_search_name, 'setText'),
             '匹配阶段的识别范围': (self.le_play_area, 'setText'),
             '匹配大厅识别关键字': (self.le_play_keywords, 'setText'),
@@ -695,18 +689,6 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             '结算页二值化阈值': (self.le_over_binaryzation, 'setText'),
             '结算页识别关键字': (self.le_over_keywords, 'setText'),
             '结算页继续按钮坐标': (self.le_over_continuexy, 'setText'),
-            '结算页每日祭礼的识别范围': (self.le_orites_area, 'setText'),
-            '结算页每日祭礼二值化阈值': (self.le_overrite_binaryzation, 'setText'),
-            '结算页每日祭礼识别关键字': (self.le_orites_keywords, 'setText'),
-            '结算页祭礼完成坐标': (self.le_overritesxy, 'setText'),
-            '段位重置的识别范围': (self.le_season_reset, 'setText'),
-            '段位重置识别关键字': (self.le_sr_keywords, 'setText'),
-            '段位重置按钮的坐标': (self.le_seasonresetxy, 'setText'),
-            '段位重置二值化阈值': (self.le_seasonreset_binaryzation, 'setText'),
-            '主界面的每日祭礼识别范围': (self.le_dr_main, 'setText'),
-            '主页面每日祭礼识别关键字': (self.le_drm_keywords, 'setText'),
-            '主页面每日祭礼二值化阈值': (self.le_mainrite_binaryzation, 'setText'),
-            '主页面祭礼关闭坐标': (self.le_main_ritesxy, 'setText'),
             '主页面的识别范围': (self.le_mainjudge, 'setText'),
             '主页面识别关键字': (self.le_mainjudge_keywords, 'setText'),
             '主页面开始坐标': (self.le_main_startxy, 'setText'),
@@ -716,41 +698,50 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
             '断线检测二值化阈值': (self.le_discheck_binaryzation, 'setText'),
             '断线确认关键字': (self.le_dcwords, 'setText'),
             '断线确认偏移量': (self.le_dcconfirm_offset, 'setText'),
-            '新内容的识别范围': (self.le_news, 'setText'),
-            '新内容识别关键字': (self.le_new_keywords, 'setText'),
-            '新内容二值化阈值': (self.le_news_binaryzation, 'setText'),
-            '新内容关闭坐标': (self.le_newsxy, 'setText'),
             '主页面逃生者坐标': (self.le_main_humanxy, 'setText'),
             '主页面杀手坐标': (self.le_main_killerxy, 'setText'),
             '角色选择按钮坐标': (self.le_rolexy, 'setText'),
-            'event_rewards': (self.le_evrewards, 'setText'),
         }
 
         # 读取self_defined_args内容
+
         try:
             with open(SDAGRS_PATH, mode='r', encoding='utf-8') as f:
-                # 读取文件中的所有内容，并将其转换为一个字典
                 existing_args = json.load(f)
-                # 更新 self_defined_args 字典
                 self_defined_args.update(existing_args)
+                
+                # 加载各项配置到对应控件
+                for key, value in existing_args.items():
+                    # 优先根据 widget_mapping 找到控件
+                    mapping = widget_mapping.get(key)
+                    if not mapping:
+                        continue
+                    widget, _ = mapping
+                    
+                    if '识别关键字' in key and isinstance(widget, QLineEdit):
+                        if isinstance(value, list) and value:
+                            formatted_keywords = []
+                            for region_keywords in value:
+                                region_str = ', '.join(region_keywords)
+                                formatted_keywords.append(region_str)
+                            display_text = ' || '.join(formatted_keywords)
+                            widget.setText(display_text)
+                        else:
+                            widget.setText("")
+                        continue
+                    
+                    # 其他参数：列表转为以逗号分隔的字符串，非列表转字符串
+                    if isinstance(widget, QLineEdit):
+                        if isinstance(value, list):
+                            widget.setText(', '.join(map(str, value)))
+                        else:
+                            widget.setText(str(value))
+                    elif isinstance(widget, QTextEdit):
+                        widget.setPlainText(str(value))
+                            
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            # 如果文件不存在或内容不是有效的 JSON，您可以根据需要处理这个异常
             print(f"读取SDargs.json文件异常: {e}")
 
-        # 遍历映射字典
-        for key, (widget, method) in widget_mapping.items():
-            # 确保 key 存在于 self_defined_args 中
-            if key in self_defined_args:
-                # 获取对应的控件和方法名
-                ctrl = getattr(widget, method)
-                # 检查值的类型，如果是列表，则转换为字符串
-                arg = ', '.join(map(str, self_defined_args[key])) if isinstance(self_defined_args[key], list) else \
-                    self_defined_args[key]
-                # 调用控件的方法，传入转换后的参数
-                ctrl(arg)
-                # print(f"\nUpdated {key} to {arg}")
-            else:
-                QMessageBox.warning(self, "错误", "键值不在参数文件中")
         self.content_changed = False
 
     def pb_next_click(self):
@@ -787,23 +778,45 @@ class AdvancedParameter(QDialog, Ui_AdvancedWindow):
 
     def update_settings(self):
         """获取更改后的数值"""
-
         for widget, setting_key in self.reverse_mapping.items():
             if isinstance(widget, QLineEdit):
-                settings_value = widget.text().split(',')
+                text_value = widget.text().strip()
+                if not text_value:
+                    continue
+                    
                 try:
-                    # 检查当前值的类型
-                    if isinstance(self_defined_args[setting_key][0], int):
-                        # 期望新值为整数
-                        settings_value = [int(item.strip()) for item in settings_value]
-                    elif isinstance(self_defined_args[setting_key][0], str):
-                        # 期望新值为字符串列表，这里假设以逗号分隔
-                        settings_value = [item.strip() for item in settings_value]
-                except (ValueError, IndexError):
-                    # 如果转换失败，返回原始文本值
-                    settings_value = widget.text()
-                # 更新 self_defined_args 字典
-                self_defined_args[setting_key] = settings_value
+                    # 获取当前配置中该键的值
+                    current_value = self_defined_args[setting_key]
+                    
+                    if isinstance(current_value, list):
+                        # 如果当前值是列表的列表(如识别关键字)
+                        if '识别关键字' in setting_key:
+                            # 处理多区域关键字格式
+                            regions = [region.strip() for region in text_value.split('||')]
+                            settings_value = []
+                            for region in regions:
+                                keywords = [kw.strip() for kw in region.split(',')]
+                                settings_value.append(keywords)
+                        else:
+                            # 处理普通数值列表 
+                            items = text_value.split(',')
+                            if all(item.strip().isdigit() for item in items):
+                                # 如果都是数字,转换为整数列表
+                                settings_value = [int(item.strip()) for item in items]
+                            else:
+                                # 对于快捷键等非数字列表
+                                settings_value = [item.strip() for item in items]
+                    else:
+                        # 非列表值直接使用文本
+                        settings_value = text_value
+                        
+                    # 更新配置
+                    self_defined_args[setting_key] = settings_value
+                    
+                except (ValueError, IndexError) as e:
+                    log_script("error", f"参数{setting_key}更新失败: {e}")
+                    Message.showMessage(f"参数{setting_key}格式错误!", "error")
+                    
             elif isinstance(widget, QTextEdit):
                 # 对于QTextEdit控件，直接获取纯文本内容
                 text_value = widget.toPlainText()
@@ -1329,6 +1342,7 @@ class CustomSelectKiller:
             "cb_degula": "黑暗之主",
             "cb_xunquanshi": "训犬师",
             "cb_jinmuyan": "食尸鬼",
+            "cb_kelasu":"克拉苏",
         }
         # 遍历配置项，根据配置项添加对应的杀手名称到列表中
         for key, value in killer_mapping_cn.items():
@@ -1385,6 +1399,7 @@ class CustomSelectKiller:
             "cb_degula": "DARK LORD",
             "cb_xunquanshi": "HOUNDMASTER",
             "cb_jinmuyan": "GHOUL",
+            "cb_kelasu":"KRASUE",
         }
         # 遍历配置项，根据配置项添加对应的杀手名称到列表中
         for key, value in killer_mapping_en.items():
@@ -1693,16 +1708,6 @@ def game_stage_redress(game_stage):
             MControl.moveclick(20, 689, 1, 3)  # 商城上空白
             log_script("debug", f"当前实际为准备阶段，正在尝试纠正阶段紊乱！")
         elif gameover() and game_stage != "结束":
-            # 判断段位重置
-            if season_reset():
-                MControl.moveclick(self_defined_args['段位重置按钮的坐标'][0],
-                                   self_defined_args['段位重置按钮的坐标'][1], click_delay=1)
-            # 祭礼完成
-            if rites():
-                MControl.moveclick(self_defined_args['结算页祭礼完成坐标'][0],
-                                   self_defined_args['结算页祭礼完成坐标'][1], 0.5, 1)
-                MControl.moveclick(self_defined_args['结算页祭礼完成坐标'][2],
-                                   self_defined_args['结算页祭礼完成坐标'][3])
             MControl.moveclick(self_defined_args['结算页继续按钮坐标'][0], 
                                self_defined_args['结算页继续按钮坐标'][1], 0.5, 1)  # return hall
             MControl.moveclick(10, 10, 1, 3)  # 避免遮挡
@@ -1847,11 +1852,7 @@ def release_all_keys():
 
 def initialize():
     """ 配置初始化 """
-    # 检查配置文件是否存在，如果不存在则创建一个空文件
-    if not os.path.exists(CFG_PATH):
-        with open(CFG_PATH, 'w', encoding='UTF-8') as configfile:
-            configfile.write("")
-    # 生成配置字典
+    # 基础配置字典
     settings_dict = {
         "CPCI": {
             "rb_survivor": False,
@@ -1864,9 +1865,7 @@ def initialize():
         "SEKI": {
             "usefile": False,
             "autoselect": False,
-            "rb_pz1": False,
-            "rb_pz2": False,
-            "rb_pz3": False,
+            "cb_pz":0
         },
         "CUCOM": {
             "cb_customcommand": False,
@@ -1883,33 +1882,97 @@ def initialize():
             "PIV_KEY": ""
         }
     }
-    for section, options in settings_dict.items():
-        if section not in cfg:
-            cfg[section] = {}
-        for option, value in options.items():
-            if option not in cfg[section]:
-                cfg[section][option] = str(value)
-    with open(CFG_PATH, 'w') as configfile:
-        cfg.write(configfile)
 
-    # 检查自定义配置文件是否存在，如果不存在则创建一个空字典
-    if not os.path.exists(SDAGRS_PATH):
-        existing_args = {}
-    else:
-        # 文件存在，读取并加载现有内容
+    cfg_updated = False
+
+    # 检查配置文件是否存在
+    if not os.path.exists(CFG_PATH):
+        with open(CFG_PATH, 'w', encoding='UTF-8') as configfile:
+            configfile.write("")
+
+    # 读取现有配置
+    cfg.read(CFG_PATH, encoding='utf-8')
+
+   # 检查是否需要更新cfg.cfg
+    need_update_cfg = False
+    
+    # 检查section是否需要更新
+    cfg_sections = set(cfg.sections())
+    settings_sections = set(settings_dict.keys())
+    if cfg_sections != settings_sections:
+        need_update_cfg = True
+    
+    # 检查option是否需要更新  
+    if not need_update_cfg:
+        for section in settings_dict:
+            if section in cfg:
+                cfg_options = set(cfg[section].keys())
+                settings_options = set(settings_dict[section].keys())
+                if cfg_options != settings_options:
+                    need_update_cfg = True
+                    break
+
+    # 仅在需要时更新cfg.cfg
+    if need_update_cfg:
+        # 清理不需要的section和option
+        for section in cfg.sections():
+            if section not in settings_dict:
+                cfg.remove_section(section)
+                cfg_updated = True
+            else:
+                # 检查每个option
+                for option in cfg[section]:
+                    if option not in settings_dict[section]:
+                        cfg.remove_option(section, option)
+                        cfg_updated = True
+
+        # 添加缺失的配置项
+        for section, options in settings_dict.items():
+            if section not in cfg:
+                cfg[section] = {}
+                cfg_updated = True
+            for option, default_value in options.items():
+                if option not in cfg[section]:
+                    cfg[section][option] = str(default_value)
+                    cfg_updated = True
+        
+    # 如果有更改,保存配置
+    if cfg_updated:
+        with open(CFG_PATH, 'w', encoding='utf-8') as configfile:
+            cfg.write(configfile)
+
+    if os.path.exists(SDAGRS_PATH):
         with open(SDAGRS_PATH, 'r', encoding='utf-8') as f:
-            existing_args = json.load(f)
+            user_config = json.load(f)
+        
+        # 创建原始用户配置的副本用于比较
+        original_user_config = user_config.copy()
+        
+        # 1. 删除废弃键（在用户配置中存在但不在默认配置中的键）
+        deprecated_keys = set(user_config.keys()) - set(self_defined_args_original.keys())
+        for key in deprecated_keys:
+            del user_config[key]
+        
+        # 2. 添加/更新缺失或不同的键（在默认配置中存在但用户配置中缺失或值不同的键）
+        updated_keys = []
+        for key in self_defined_args:
+            # 如果键不存在于用户配置中，或者值不同
+            if key not in original_user_config or original_user_config[key] != self_defined_args[key]:
+                user_config[key] = self_defined_args[key]  # 更新为默认值
+                updated_keys.append(key)
+        
+        # 确定是否需要更新文件
+        need_update = bool(deprecated_keys) or bool(updated_keys)
+        
+        if need_update:
+            with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
+                json.dump(user_config, f, indent=4, ensure_ascii=False)
+    else:
+        # 文件不存在时直接创建
+        with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
+            json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
 
-    # 更新或添加新的键值对
-    for key, value in self_defined_args.items():
-        if key not in existing_args:
-            existing_args[key] = value
-
-    # 将更新后的键值对写回文件
-    with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
-        json.dump(existing_args, f, indent=4, ensure_ascii=False)
-
-    # 检查自定义杀手文件是否存在，如果不存在则创建一个空文件
+    # 检查选择屠夫文件是否存在，如果不存在则创建一个空文件
     if not os.path.exists(CUSTOM_KILLER_PATH):
         with open(CUSTOM_KILLER_PATH, 'w', encoding='UTF-8') as custom_file:
             custom_file.write("")
@@ -1928,7 +1991,10 @@ def save_cfg():
         for option_name, ui_control in options.items():
             if option_name == "PIV_KEY":
                 continue
-            cfg[section][option_name] = str(ui_control.isChecked())
+            if option_name == "cb_pz":
+                cfg[section][option_name] = str(selectWindowUi.cb_pz.currentIndex())
+            else:
+                cfg[section][option_name] = str(ui_control.isChecked())
     with open(CFG_PATH, 'w', encoding='utf-8') as configfile:
         cfg.write(configfile)
 
@@ -1941,20 +2007,27 @@ def read_cfg():
         if section == "PIV":
             continue
         for key, ui_control in keys.items():
-            value = cfg.getboolean(section, key)
-            ui_control.setChecked(value)
+            if key == "cb_pz":  # 特殊处理下拉框
+                if cfg.has_option(section, key):
+                    index = int(cfg.get(section, key))
+                    selectWindowUi.cb_pz.setCurrentIndex(index)
+            else:  # 其他复选框和单选框
+                value = cfg.getboolean(section, key)
+                ui_control.setChecked(value)
+                
+    # 设置UI状态
     if cfg.getboolean("CPCI", "rb_survivor"):
         dbdWindowUi.cb_survivor_do.setEnabled(True)
         dbdWindowUi.rb_fixed_mode.setDisabled(True)
-        dbdWindowUi.rb_random_mode.setDisabled(True)
+        dbdWindowUi.rb_random_mode.setDisabled(True)  
         dbdWindowUi.cb_killer_do.setDisabled(True)
         dbdWindowUi.pb_select_cfg.setDisabled(True)
+        
     if cfg.getboolean("CPCI", "rb_killer"):
         dbdWindowUi.cb_survivor_do.setDisabled(True)
-    if not cfg.getboolean("SEKI", "autoselect"):
-        selectWindowUi.rb_pz1.setDisabled(True)
-        selectWindowUi.rb_pz2.setDisabled(True)
-        selectWindowUi.rb_pz3.setDisabled(True)
+
+    if cfg.getboolean("SEKI", "autoselect"):
+        selectWindowUi.cb_pz.setEnabled(True)
 
     # 读取self_defined_args内容
     try:
@@ -2261,12 +2334,17 @@ def move_window(hwnd, target_x, target_y):
 def change_skill_allocation():
     if cfg.getboolean("SEKI", "autoselect"):
         MControl.moveclick(self_defined_args['装备配置按钮坐标'][0], self_defined_args['装备配置按钮坐标'][1], 1)
-        if cfg.getboolean("SEKI", "rb_pz1"):
-            MControl.moveclick(self_defined_args['装备配置1的坐标'][0], self_defined_args['装备配置1的坐标'][1], 1)
-        if cfg.getboolean("SEKI", "rb_pz2"):
-            MControl.moveclick(self_defined_args['装备配置2的坐标'][0], self_defined_args['装备配置2的坐标'][1], 1)
-        if cfg.getboolean("SEKI", "rb_pz3"):
-            MControl.moveclick(self_defined_args['装备配置3的坐标'][0], self_defined_args['装备配置3的坐标'][1], 1)
+        MControl.moveclick(self_defined_args["装备预设按钮坐标"][0], self_defined_args["装备预设按钮坐标"][1], 1)
+
+        # 获取当前选择的预设索引(0-6)
+        preset_index = selectWindowUi.cb_pz.currentIndex()
+        log_script("info", f"-->选择装备预设{preset_index + 1}")
+        
+        # 根据索引使用对应的预设坐标
+        preset_key = f'装备预设{preset_index + 1}的坐标'
+        if preset_key in self_defined_args:
+            MControl.moveclick(self_defined_args[preset_key][0],
+                             self_defined_args[preset_key][1], 1)
 
 
 def action():
@@ -2455,71 +2533,110 @@ def convert_selected_hotkeys(args):
 
 
 def ocr_range_inspection(identification_key: str,
-                         ocr_func: Callable,
-                         capture_range: str,
-                         min_sum_name: str,
-                         name: str) -> Callable:
-    """装饰器工厂，生成OCR识别函数，根据阈值范围和关键字进行识别
-    :param identification_key: 关键字列表名称，str
-    :param ocr_func: 图像识别函数，Callable
-    :param capture_range: 自定义参数的名称，str
-    :param min_sum_name: 最小阈值的名称，str
-    :param name: 图片命名，str
-    :return: Callable
-    """
-
+                       ocr_func: Callable,
+                       capture_range: str,
+                       threshold_max_name: str,
+                       name: str) -> Callable:
+    """支持多区域+独立阈值+独立关键字的OCR装饰器工厂"""
+    
     def decorator(func):
         @functools.wraps(func)
-        def wrapper():
-            # x1 = self_defined_args[capture_range][0]
-            # y1 = self_defined_args[capture_range][1]
-            # x2 = self_defined_args[capture_range][2]
-            # y2 = self_defined_args[capture_range][3]
-            x1, y1, x2, y2 = self_defined_args[capture_range]
-            threshold = self_defined_args[min_sum_name][0]
-            threshold_high = self_defined_args[min_sum_name][1]
-            keywords = self_defined_args[identification_key]
+        def wrapper(*args, **kwargs):
+            range_values = self_defined_args[capture_range]
+            max_threshold = self_defined_args[threshold_max_name][0]
+            keywords_config = self_defined_args[identification_key]
+            
             if name == 'disconnect' and dbdWindowUi.cb_debug.isChecked():
-                # 调试模式直接返回
                 return False
 
-            # 调用img_ocr函数，传入坐标和二值化阈值
-            ocr_result = ocr_func(x1, y1, x2, y2, sum=threshold)
-            log_script("debug", f"{name}.OCR 识别内容为：{ocr_result}")
+            # 解析区域配置 (每5个数字: x1,y1,x2,y2,threshold)
+            regions = []
+            for i in range(0, len(range_values), 5):
+                if i + 4 < len(range_values):
+                    region = {
+                        'coords': tuple(range_values[i:i+4]),
+                        'threshold': range_values[i+4]
+                    }
+                    regions.append(region)
+            
+            if not regions:
+                log_script("warning", f"{name}未配置有效检测区域")
+                return False
+                
+            # 处理关键字配置
+            if not keywords_config:
+                log_script("error", f"{name}未配置识别关键字")
+                return False
+                
+            # 确保关键字配置与区域数量匹配
+            if len(keywords_config) < len(regions):
+                # 如果关键字列表少于区域数，使用最后一个关键字列表补齐
+                last_keywords = keywords_config[-1]
+                keywords_config += [last_keywords] * (len(regions) - len(keywords_config))
+                log_script("debug", f"{name}关键字配置不足，已使用最后一项补齐")
+            
+            elif len(keywords_config) > len(regions):
+                # 如果关键字列表多于区域数，截断到区域数量
+                keywords_config = keywords_config[:len(regions)]
+                log_script("debug", f"{name}关键字配置过多，已截断")
 
-            if any(keyword in ocr_result for keyword in keywords):
+            # 遍历所有区域进行检测
+            for region_idx, region in enumerate(regions):
+                x1, y1, x2, y2 = region['coords']
+                current_threshold = region['threshold']
+                current_keywords = keywords_config[region_idx]  # 当前区域的关键字
+                
+                ocr_result = ocr_func(
+                    x1, y1, x2, y2,
+                    sum=current_threshold
+                )
+                
+                log_script("debug", 
+                    f"{name}区域{region_idx+1}[阈:{current_threshold}] OCR结果: {ocr_result} | 关键字: {current_keywords}"
+                )
 
-                if dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 1:  # 1 - open, 0 - close
-                    # if min_sum_name != '断线检测二值化阈值':
-                    self_defined_args[min_sum_name][2] = 0
-                    # 将更新后的键值对写回文件
-                    with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
-                        json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
+                # 检查是否包含当前区域的任一关键字
+                if any(keyword in ocr_result for keyword in current_keywords):
+                    # 成功检测处理
+                    if dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[threshold_max_name][1] == 1:
+                        self_defined_args[threshold_max_name][1] = 0
+                        with open(SDAGRS_PATH, 'w', encoding='utf-8') as f:
+                            json.dump(self_defined_args, f, indent=4, ensure_ascii=False)
+                    
+                    log_script("debug", f"{name}区域{region_idx+1}检测到关键字")
+                    return True
 
-                return True
-            elif ((dbdWindowUi.cb_bvinit.isChecked() and self_defined_args[min_sum_name][2] == 1) or
-                  stage_monitor.long_stay_switch is True):
-
-                new_threshold = threshold - 10  # 递减一个步长作为新的阈值
-                if new_threshold < 30:  # 确保不低于停止值
-                    new_threshold = threshold_high
-                self_defined_args[min_sum_name][0] = new_threshold
-                log_script("debug", f"BV循环中···{name}的二值化阈值当前为：{new_threshold}")
+            # 自适应阈值调整（仅在BV初始化或长时间停留时触发）
+            if dbdWindowUi.cb_bvinit.isChecked() or stage_monitor.long_stay_switch:
+                # 更新所有区域的阈值
+                for i in range(4, len(range_values), 5):  # 遍历所有区域的阈值索引
+                    # 每个区域减少10，如果低于30则重置为上限值
+                    if range_values[i] <= 30:
+                        range_values[i] = max_threshold
+                    else:
+                        range_values[i] -= 10
+                
+                log_script("debug", f"{name}区域阈值更新: {[range_values[i] for i in range(4, len(range_values), 5)]}")
 
             return False
 
         return wrapper
-
     return decorator
 
 
 def img_ocr(x1, y1, x2, y2, sum=128) -> str:
     """OCR识别图像，返回字符串
     :return: string"""
+    # 坐标校验
+    if x1 >= x2 or y1 >= y2:
+        log_script("debug", f"无效区域坐标: ({x1},{y1})-({x2},{y2})")
+        return ""
+
     if hwnd == 0:
         Message.showMessage('未检测到游戏窗口！', 'warning')
         return ""
     result = ""
+    
     image = screenshot(hwnd)
     if image is None:
         Message.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
@@ -2598,37 +2715,6 @@ def gameover() -> bool:
     pass
 
 
-@ocr_range_inspection('结算页每日祭礼识别关键字',
-                      img_ocr, '结算页每日祭礼的识别范围', '结算页每日祭礼二值化阈值', "rites")
-def rites() -> bool:
-    """check rites complete
-    :return:bool"""
-    pass
-
-
-# @ocr_range_inspection((130, 80, -10), ["每日祭礼", "DAILY RITUALS"])
-# 检测活动奖励  #####未完成
-# def event_rewards() -> bool:
-#     """check the event rewards
-#     :return: bool"""
-
-
-@ocr_range_inspection('段位重置识别关键字',
-                      img_ocr, '段位重置的识别范围', '段位重置二值化阈值', "reset")
-def season_reset() -> bool:
-    """check the season reset
-    :return: bool"""
-    pass
-
-
-@ocr_range_inspection('主页面每日祭礼识别关键字',
-                      img_ocr, '主界面的每日祭礼识别范围', '主页面每日祭礼二值化阈值', "daily_ritual_main")
-def daily_ritual_main() -> bool:
-    """check the daily task after serious disconnect -->[main]
-    :return: bool
-    """
-    pass
-
 
 @ocr_range_inspection('主页面识别关键字',
                       img_ocr, '主页面的识别范围', '主页面二值化阈值', "start")
@@ -2648,100 +2734,123 @@ def disconnect_check() -> bool:
     pass
 
 
-@ocr_range_inspection('新内容识别关键字',
-                      img_ocr, '新内容的识别范围', '新内容二值化阈值', "news")
-def news() -> bool:
-    """断线重连后的新闻
-    :return: bool"""
-    pass
-
-
 def disconnect_confirm(sum=120) -> None:
     """After disconnection click confirm button. not need process."""
+    # 使用传入的二值化阈值 sum 进行OCR；支持多识别范围；英文不做小写转换，只去除空白
 
-    # 定义局部函数，用于获取按钮坐标
-    def get_coordinates(result, target_string):
-        for item in result:
-            if target_string in item:
-                target = result.index(item)
-                # 确保不会越界，并且结果确实是数字
-                if target + 2 < len(result) and result[target + 1].isdigit() and result[target + 2].isdigit():
-                    confirmX, confirmY = int(result[target + 1]), int(result[target + 2])
-                    return confirmX, confirmY
-        return None, None
+    # 识别范围（支持多个区域：每5个为一组 x1,y1,x2,y2,threshold）
+    range_values = self_defined_args['断线检测的识别范围']
+    target_strings = self_defined_args.get('断线确认关键字', [])
+    offset = self_defined_args.get('断线确认偏移量', [0, 0])
 
-    # print(f"disconnect_confirm识别中···\n")
-    result = ""
-    disconnect_check_colorXY = self_defined_args['断线检测的识别范围']
+    if not isinstance(target_strings, list) or not target_strings:
+        log_script("warning", "未配置断线确认关键字，跳过点击确认。")
+        return
+
+    # 将关键字做最小归一化：仅去空白，不改变大小写
+    norm_targets = [str(t).strip() for t in target_strings if str(t).strip()]
+    if not norm_targets:
+        log_script("warning", "断线确认关键字为空，跳过点击确认。")
+        return
+
+    # 解析区域列表（兼容旧配置：若仅4个值，视为单区域）
+    regions = []
+    if len(range_values) >= 5:
+        for i in range(0, len(range_values), 5):
+            if i + 3 < len(range_values):
+                coords = tuple(range_values[i:i+4])
+                regions.append(coords)
+    elif len(range_values) == 4:
+        regions.append(tuple(range_values))
+    else:
+        log_script("warning", "断线检测的识别范围配置无效，跳过点击确认。")
+        return
 
     image = screenshot(hwnd)
     if image is None:
         Message.showMessage('无效的截图区域，游戏或已崩溃！', 'error')
-        log_script("warning", f"截图失败，无效的截图区域！")
+        log_script("warning", "截图失败，无效的截图区域！")
         kill()
         return
 
-    screen_x1, screen_y1 = MControl.client_to_screen(disconnect_check_colorXY[0], disconnect_check_colorXY[1])
-    screen_x2, screen_y2 = MControl.client_to_screen(disconnect_check_colorXY[2], disconnect_check_colorXY[3])
-    # 按区域裁剪
-
-    # 裁剪图像
-    cropped = image.crop((screen_x1, screen_y1, screen_x2, screen_y2))
-
-    # 转为灰度图像
-    grayscale_image = cropped.convert('L')
-
-    # 二值化
-    binary_image = grayscale_image.point(lambda x: 0 if x < sum else 255, '1')
-
-    custom_config = r'--oem 3 --psm 6'
-
-    # 判断中英文切换模型
+    # OCR语言
     if cfg.getboolean("UPDATE", "rb_chinese"):
         lan = "chi_sim"
     elif cfg.getboolean("UPDATE", "rb_english"):
         lan = "eng"
     else:
-        lan = "chi_sim+eng"  # 默认简体中文+英文
+        lan = "chi_sim+eng"
 
-    try:
-        # 创建一个临时文件
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_file:
-            temp_path = temp_file.name
-            # 将二值化后的图像保存到临时文件
-            binary_image.save(temp_path, format='JPEG')
-            try:
-                # 使用Tesseract OCR引擎识别图像中的文本
-                result_unprocessed = pytesseract.image_to_boxes(binary_image, config=custom_config, lang=lan)
+    custom_config = r'--oem 3 --psm 6'
 
-                # 检查是否有识别结果
-                if result_unprocessed:
-                    result = result_unprocessed.split(' ')
-            except pytesseract.TesseractError:
-                return
-    finally:
-        # 确保临时文件被删除，防止内存泄露和磁盘空间占用
-        os.unlink(temp_path)
+    # 遍历所有区域，找到最佳匹配后立即点击
+    for region_idx, (x1c, y1c, x2c, y2c) in enumerate(regions):
+        # 客户端 -> 屏幕坐标
+        screen_x1, screen_y1 = MControl.client_to_screen(x1c, y1c)
+        screen_x2, screen_y2 = MControl.client_to_screen(x2c, y2c)
 
-    log_script("debug", f"断线确认识别内容为：{result}\n")
+        # 裁剪并阈值化
+        cropped = image.crop((screen_x1, screen_y1, screen_x2, screen_y2))
+        binary = cropped.convert('L').point(lambda x: 0 if x < sum else 255)
 
-    # 定义需要查找的字符串列表
-    target_strings = self_defined_args["断线确认关键字"]
+        try:
+            data = pytesseract.image_to_data(binary, lang=lan, config=custom_config, output_type=Output.DICT)
+        except pytesseract.TesseractError:
+            continue
 
-    # 遍历目标字符串列表
-    for target_string in target_strings:
-        confirmx, confirmy = get_coordinates(result, target_string)
-        if confirmx is not None and confirmy is not None:
-            # print(f"disconnect_confirm已识别···")
-            # 调用moveclick函数
-            # print(f"关键字：{target_string},坐标：({confirmx}, {confirmy})")
-            MControl.moveclick(disconnect_check_colorXY[0] + confirmx + self_defined_args["断线确认偏移量"][0], disconnect_check_colorXY[3] - confirmy + self_defined_args["断线确认偏移量"][1],
-                               1, 1)
+        n = len(data.get('text', []))
+        if n == 0:
+            log_script("debug", f"断线确认OCR无结果。区域:{region_idx+1}")
             press_key('enter')
             time.sleep(0.1)
             release_key('enter')
-            # 找到了坐标，跳出循环
-            break
+            continue
+
+        best_idx = -1
+        best_conf = -1.0
+        best_target = None
+
+        for i in range(n):
+            txt = str(data['text'][i]).strip()
+            if not txt:
+                continue
+            try:
+                conf = float(data.get('conf', ['-1'])[i])
+            except ValueError:
+                conf = -1.0
+
+            for t in norm_targets:
+                # 保持大小写敏感匹配（根据需求不对英文小写化）
+                if t and t in txt:
+                    if conf > best_conf:
+                        best_conf = conf
+                        best_idx = i
+                        best_target = t
+
+        if best_idx == -1:
+            continue
+
+        # 取该词的边界框，转换为客户端坐标
+        x = int(data['left'][best_idx])
+        y = int(data['top'][best_idx])
+        w = int(data['width'][best_idx])
+        h = int(data['height'][best_idx])
+
+        cx_in_crop = x + w // 2
+        cy_in_crop = y + h // 2
+
+        click_x = x1c + cx_in_crop + int(offset[0])
+        click_y = y1c + cy_in_crop + int(offset[1])
+
+        log_script("debug", f"断线确认：区域{region_idx+1}匹配到关键字 '{best_target}'，置信度={best_conf:.1f}，点击({click_x}, {click_y})。")
+
+        MControl.moveclick(click_x, click_y, 1, 1)
+        press_key('enter')
+        time.sleep(0.1)
+        release_key('enter')
+        return
+
+    log_script("debug", "断线确认：所有区域均未匹配到关键字。")
 
 
 def reconnect() -> bool:
@@ -2784,24 +2893,6 @@ def reconnect() -> bool:
                         break
             time.sleep(1)
             MControl.moveclick(10, 10, click_delay=1)  # 登录界面“按空格以继续”
-            # 活动奖励 -> None
-            # 判断新闻
-            if news():
-                MControl.moveclick(self_defined_args['新内容关闭坐标'][0], self_defined_args['新内容关闭坐标'][1],
-                                   click_delay=1)
-                log_script("info", f"重连---关闭新闻···")
-            # 判断每日祭礼
-            if daily_ritual_main():
-                MControl.moveclick(self_defined_args['主页面祭礼关闭坐标'][0],
-                                   self_defined_args['主页面祭礼关闭坐标'][1],
-                                   click_delay=1)
-                log_script("info", f"重连---关闭每日祭礼···")
-            # 判断段位重置
-            if season_reset():
-                MControl.moveclick(self_defined_args['段位重置按钮的坐标'][0],
-                                   self_defined_args['段位重置按钮的坐标'][1],
-                                   click_delay=1)
-                log_script("info", f"重连---关闭段位重置···")
             # 是否重进主页面判断
             if mainjudge():
                 log_script("info", f"重连---正在返回匹配大厅···")
@@ -2892,14 +2983,14 @@ def killer_action() -> None:
         return
     
     # 配置技能角色列表
-    ctrl_lst_cn = ["医生", "梦魇", "小丑", "魔王", "连体婴", "影魔", "白骨商人", "好孩子", "未知恶物", "巫妖"]
+    ctrl_lst_cn = ["医生", "梦魇", "小丑", "魔王", "连体婴", "影魔", "白骨商人", "好孩子", "未知恶物", "巫妖", "克拉苏"]
     need_lst_cn = ["门徒", "魔王", "死亡枪手", "骗术师", "NEMESIS", "地狱修士", "艺术家", "影魔", "奇点", "操纵者",
-                "好孩子", "未知恶物", "巫妖", "黑暗之主", "训犬师"]
+                "好孩子", "未知恶物", "巫妖", "黑暗之主", "训犬师", "克拉苏"]
     ctrl_lst_en = ["DOCTOR", "NIGHTMARE", "CLOWN", "DEMOGORGON", "TWINS", "DREDGE", "SKULL MERCHANT", "GOOD GUY",
-                "UNKNOWN", "LICH"]
+                "UNKNOWN", "LICH", "KRASUE"]
     need_lst_en = ["PIG", "DEMOGORGON", "DEATHSLINGER", "TRICKSTER", "NEMESIS",
                 "CENOBITE", "ARTIST", "DREDGE", "SINGULARITY", "MASTERMIND", "GOOD GUY", "UNKNOWN",
-                "LICH", "DARK LORD", "HOUNDMASTER"]
+                "LICH", "DARK LORD", "HOUNDMASTER", "KRASUE"]
     
     # 根据语言选择列表
     ctrl_lst = ctrl_lst_cn if cfg.getboolean("UPDATE", "rb_chinese") else ctrl_lst_en
@@ -3068,13 +3159,7 @@ def killer_action() -> None:
         
     except Exception:
         # 出错时确保释放所有按键
-        release_key('w')
-        release_key('a')
-        release_key('s') 
-        release_key('d')
-        release_key('lcontrol')
-        release_mouse()
-        release_mouse('right')
+        release_all_keys()
 
 
 def killer_fixed_act() -> None:
@@ -3167,8 +3252,6 @@ def character_selection() -> None:
         time.sleep(0.1)
 
         MControl.moveclick(self_defined_args['第一个角色坐标'][0], self_defined_args['第一个角色坐标'][1], 1, times=2,
-                          interval=1)
-        MControl.moveclick(self_defined_args['角色选择按钮坐标'][0], self_defined_args['角色选择按钮坐标'][1], 1, times=1,
                           interval=1)
 
         index += 1
@@ -3398,17 +3481,6 @@ def afk() -> None:
             if not pause_event.is_set():
                 pause_event.wait()
 
-            # 判断段位重置
-            if season_reset():
-                MControl.moveclick(self_defined_args['段位重置按钮的坐标'][0],
-                                   self_defined_args['段位重置按钮的坐标'][1], click_delay=1)
-            # 祭礼完成
-            if rites():
-                MControl.moveclick(self_defined_args['结算页祭礼完成坐标'][0],
-                                   self_defined_args['结算页祭礼完成坐标'][1], 0.5, 1)
-                MControl.moveclick(self_defined_args['结算页祭礼完成坐标'][2],
-                                   self_defined_args['结算页祭礼完成坐标'][3])
-
             if gameover():
                 stage_monitor.exit_stage()
                 log_script("info", f"第{circulate_number}次脚本循环---游戏结束···")
@@ -3464,26 +3536,73 @@ def afk() -> None:
 
 def generate_random_name():
     """生成更自然的进程名和窗口标题"""
-    # 扩充词库
-    processes = [
-        "Runtime", "Service", "Monitor", "Agent", "Helper",
-        "Launcher", "Manager", "Daemon", "Worker", "Handler"
+    # 基础词库
+    vendors = [
+        "Microsoft", "Windows", "System", "Desktop", "Local",
+        "Background", "User", "Device", "Security", "Network",
+        "Runtime", "Update", "Service", "Core", "Client"
     ]
-    prefixes = [
-        "System", "Windows", "Microsoft", "Desktop", "Local", 
-        "Background", "Core", "App", "Client", "Host"
+    components = [
+        "Host", "Manager", "Agent", "Service", "Runtime",
+        "Helper", "Monitor", "Shell", "Provider", "Broker",
+        "Launcher", "Worker", "Handler", "Subsystem", "Bridge"
     ]
-    
-    # 随机生成版本号
-    version = ""
-    if random.random() > 0.6:
-        major = random.randint(1,5)
-        minor = random.randint(0,9) 
-        build = random.randint(100,999)
-        version = f" {major}.{minor}.{build}"
-        
-    # 组合名称
-    name = f"{random.choice(prefixes)} {random.choice(processes)}{version}"
+    technologies = [
+        "Telemetry", "Defender", "Layer", "Storage", "Graphics",
+        "Audio", "Input", "Bluetooth", "Scheduler", "Runtime",
+        "Network", "Update", "Services", "Security", "DirectX"
+    ]
+
+    # 可选后缀与标记
+    arch_flags = ["", " (32-bit)", " (64-bit)", " x64", " x86"]
+    svc_flags = ["", " Service", " Services", " Framework", " Component"]
+
+    # 可选版本/构建/短标识
+    def random_version():
+        if random.random() < 0.65:
+            return f" {random.randint(1,10)}.{random.randint(0,9)}.{random.randint(100,999)}"
+        return ""
+
+    def random_build_tag():
+        opts = ["", f" (Build {random.randint(1000,9999)})", f" v{random.randint(1,5)}.{random.randint(0,9)}"]
+        return random.choice(opts)
+
+    def random_short_id():
+        if random.random() < 0.5:
+            # 生成短十六进制ID
+            return f"_{''.join(random.choices('0123456789ABCDEF', k=random.randint(4,6)))}"
+        return ""
+
+    # 多模板命名，提升多样性
+    templates = [
+        # 经典: Vendor Component [Version][Build][Arch]
+        lambda: f"{random.choice(vendors)} {random.choice(components)}{random_version()}{random_build_tag()}{random.choice(arch_flags)}",
+        # 双段: Vendor Technology [Service][Version]
+        lambda: f"{random.choice(vendors)} {random.choice(technologies)}{random.choice(svc_flags)}{random_version()}{random_short_id()}",
+        # 三段: Vendor Component Technology
+        lambda: f"{random.choice(vendors)} {random.choice(components)} {random.choice(technologies)}{random_build_tag()}",
+        # 简约: Component [Service]
+        lambda: f"{random.choice(components)}{random.choice(svc_flags)}{random_version()}",
+        # 系统风: Windows <Component> Host
+        lambda: f"Windows {random.choice(components)} Host{random_build_tag()}{random.choice(arch_flags)}",
+        # 平台风: Microsoft <Technology> Manager
+        lambda: f"Microsoft {random.choice(technologies)} Manager{random_version()}{random_short_id()}",
+        # 后台标识: Background <Component> Runtime
+        lambda: f"Background {random.choice(components)} Runtime{random_build_tag()}",
+    ]
+
+    # 生成并进行轻微变体处理
+    name = random.choice(templates)()
+
+    # 小概率插入额外空格或小写化某一部分，增强多样性但保持自然
+    if random.random() < 0.15:
+        name = name.replace("  ", " ")
+    if random.random() < 0.10:
+        # 部分小写化尾部标记
+        parts = name.rsplit(" ", 1)
+        if len(parts) == 2 and len(parts[1]) > 2:
+            name = parts[0] + " " + parts[1].lower()
+
     return name
 
 def find_game_window():
@@ -3652,50 +3771,47 @@ if __name__ == '__main__':
                          '第一个角色坐标': [366, 402],
                          '搜索输入框坐标': [666, 254],
                          '装备配置按钮坐标': [140, 200],
-                         '装备配置1的坐标': [900, 60],
-                         '装备配置2的坐标': [950, 60],
-                         '装备配置3的坐标': [1000, 60],
-                         '匹配阶段的识别范围': [1446, 771, 1920, 1080],
-                         '匹配大厅二值化阈值': [120, 130, 0],
-                         '匹配大厅识别关键字': ["开始游戏", "PLAY"],
+                         '装备预设按钮坐标':[920, 91],
+                         '装备预设1的坐标': [890, 126],
+                         '装备预设2的坐标': [887, 158],
+                         '装备预设3的坐标': [887, 190],
+                         '装备预设4的坐标':[904, 222],
+                         '装备预设5的坐标':[887, 255],
+                         '装备预设6的坐标':[892, 287],
+                         '装备预设7的坐标':[913, 319],
+                         '匹配阶段的识别范围': [1446, 771, 1920, 1080, 120],
+                         '匹配大厅二值化阈值': [130, 0],
+                         '匹配大厅识别关键字': [["开始游戏", "PLAY"]],
                          '开始游戏按钮的坐标': [1742, 931],
-                         '准备阶段的识别范围': [1446, 771, 1920, 1080],
-                         '准备房间二值化阈值': [120, 130, 0],
-                         '准备大厅识别关键字': ["准备就绪", "READY"],
+                         '准备阶段的识别范围': [1446, 771, 1920, 1080, 120],
+                         '准备房间二值化阈值': [130, 0],
+                         '准备大厅识别关键字': [["准备就绪", "READY"]],
                          '准备就绪按钮的坐标': [1742, 931],
-                         '结算页的识别范围': [56, 46, 370, 172],
-                         '结算页二值化阈值': [70, 130, 0],
-                         '结算页识别关键字': ["比赛", "得分", "你的", "MATCH", "SCORE"],
+                         '结算页的识别范围': [
+                             56, 46, 370, 172, 70, 
+                             1712, 989, 1783, 1029, 100
+                             ],
+                         '结算页二值化阈值': [130, 0],
+                         '结算页识别关键字': [
+                             ["比赛", "得分", "你的", "MATCH", "SCORE"], 
+                             ["继续", "CONTINUE"]
+                             ],
                          '结算页继续按钮坐标': [1761, 1009],
-                         '结算页每日祭礼的识别范围': [106, 267, 430, 339],
-                         '结算页每日祭礼二值化阈值': [120, 130, 0],
-                         '结算页每日祭礼识别关键字': ["每日", "DAILY RITUALS"],
-                         '结算页祭礼完成坐标': [396, 718, 140, 880],
-                         '段位重置的识别范围': [192, 194, 426, 291],
-                         '段位重置二值化阈值': [120, 130, 0],
-                         '段位重置识别关键字': ["重置", "RESET"],
-                         '段位重置按钮的坐标': [1468, 843],
-                         '断线检测的识别范围': [457, 530, 1488, 796],
-                         '断线检测二值化阈值': [110, 130, 0],
-                         '断线检测识别关键字': ["好的", "关闭", "CLOSE", "继续", "CONTINUE"],
-                         '断线确认关键字': ["好", "关", "继", "K", "C"],
+                         '断线检测的识别范围': [
+                            1319, 570, 1462, 788, 110,
+                            469, 580, 610, 796, 120
+                            ],
+                         '断线检测二值化阈值': [130, 0],
+                         '断线检测识别关键字': [["好的", "关闭", "CLOSE", "继续", "CONTINUE", "取消"]],
+                         '断线确认关键字': ["好", "关", "继", "K", "C", "取"],
                          '断线确认偏移量': [0, 0],
-                         '主界面的每日祭礼识别范围': [441, 255, 666, 343],
-                         '主页面每日祭礼二值化阈值': [120, 130, 0],
-                         '主页面每日祭礼识别关键字': ["每日", "DAILY RITUALS"],
-                         '主页面祭礼关闭坐标': [545, 880],
-                         '主页面的识别范围': [203, 78, 365, 135],
-                         '主页面二值化阈值': [120, 130, 0],
-                         '主页面识别关键字': ["开始", "PLAY"],
+                         '主页面的识别范围': [203, 78, 365, 135, 120],
+                         '主页面二值化阈值': [130, 0],
+                         '主页面识别关键字': [["开始", "PLAY"]],
                          '主页面开始坐标': [320, 100],
                          '主页面逃生者坐标': [339, 320],
                          '主页面杀手坐标': [328, 224],
-                         '新内容的识别范围': [548, 4, 1476, 256],
-                         '新内容二值化阈值': [120, 130, 0],
-                         '新内容识别关键字': ["新内容", "NEW CONTENT"],
-                         '新内容关闭坐标': [1413, 992],
                          '坐标转换开关': 0,
-                         'event_rewards': ["-"],  # 未完成的事件奖励,留空即可
                          }
     self_defined_args_original = copy.deepcopy(self_defined_args)
 
@@ -3724,9 +3840,7 @@ if __name__ == '__main__':
     seki_keys = [
         "usefile",
         "autoselect",
-        "rb_pz1",
-        "rb_pz2",
-        "rb_pz3",
+        "cb_pz"
     ]
     seki_dict = {key: getattr(selectWindowUi, key) for key in seki_keys}
 
@@ -3749,7 +3863,7 @@ if __name__ == '__main__':
             "babu", "fulaidi", "zhuzhu", "xiaochou", "lingmei", "juntuan", "wenyi", "guimian",
             "mowang", "guiwushi", "qiangshou", "sanjiaotou", "kumo", "liantiying", "gege",
             "zhuizhui", "dingzitou", "niaojie", "zhenzi", "yingmo", "weishu", "eqishi",
-            "baigu", "jidian", "yixing", "qiaji", "ewu", "wuyao", "degula", "xunquanshi", "jinmuyan"
+            "baigu", "jidian", "yixing", "qiaji", "ewu", "wuyao", "degula", "xunquanshi", "jinmuyan", "kelasu"
         ]
     ]
     cussec_dict = {key: getattr(selectWindowUi, key) for key in cussec_keys}
@@ -3803,7 +3917,6 @@ if __name__ == '__main__':
     custom_command = ActionExecutor(CUSTOM_COMMAND_PATH, hwnd)
     log_view = LogView(LOG_PATH)
     hotkey_listener = HotkeyListener()
-
     if QLocale.system().language() != QLocale.Chinese or cfg.getboolean("UPDATE", "rb_english"):
         dbdWindowUi.rb_english_change()
     custom_select = CustomSelectKiller()
@@ -3841,7 +3954,7 @@ if __name__ == '__main__':
 
     if cfg.getboolean("UPDATE", "cb_autocheck"):  # 检查更新
         splash.show_message("正在检查更新...")
-        check_update('V2.8.5')
+        check_update('V2.8.6')
     
     splash.finish(dbdWindowUi)
     dbdWindowUi.show()
