@@ -152,33 +152,55 @@
            </property>
           </spacer>
          </item>
-         <item alignment="Qt::AlignRight">
-          <widget class="QRadioButton" name="rb_pz1">
-           <property name="text">
-            <string>1</string>
+         <item>
+          <widget class="QComboBox" name="cb_pz">
+           <property name="enabled">
+            <bool>false</bool>
            </property>
-          </widget>
-         </item>
-         <item alignment="Qt::AlignRight">
-          <widget class="QRadioButton" name="rb_pz2">
-           <property name="text">
-            <string>2</string>
+           <property name="editable">
+            <bool>false</bool>
            </property>
-          </widget>
-         </item>
-         <item alignment="Qt::AlignRight">
-          <widget class="QRadioButton" name="rb_pz3">
-           <property name="text">
-            <string>3</string>
+           <property name="currentIndex">
+            <number>0</number>
            </property>
+           <item>
+            <property name="text">
+             <string>预设1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>预设2</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>预设3</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>预设4</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>预设5</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>预设6</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>预设7</string>
+            </property>
+           </item>
           </widget>
          </item>
         </layout>
-        <zorder>rb_pz3</zorder>
-        <zorder>rb_pz2</zorder>
-        <zorder>rb_pz1</zorder>
-        <zorder>autoselect</zorder>
-        <zorder>horizontalSpacer_2</zorder>
        </widget>
       </item>
       <item>
@@ -953,6 +975,13 @@
         </property>
        </widget>
       </item>
+      <item row="10" column="3">
+       <widget class="QCheckBox" name="cb_kelasu">
+        <property name="text">
+         <string>克拉苏</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -1082,49 +1111,17 @@
   </connection>
   <connection>
    <sender>autoselect</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>rb_pz1</receiver>
+   <signal>clicked(bool)</signal>
+   <receiver>cb_pz</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>111</x>
-     <y>56</y>
+     <x>140</x>
+     <y>50</y>
     </hint>
     <hint type="destinationlabel">
-     <x>206</x>
-     <y>57</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>autoselect</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>rb_pz2</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>54</x>
-     <y>52</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>254</x>
-     <y>56</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>autoselect</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>rb_pz3</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>44</x>
-     <y>52</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>308</x>
-     <y>58</y>
+     <x>201</x>
+     <y>48</y>
     </hint>
    </hints>
   </connection>
